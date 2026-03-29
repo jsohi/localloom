@@ -100,10 +100,8 @@ flowchart TD
     L --> M[Save transcript segments<br/>to PostgreSQL]
 
     M --> N[Spring AI TokenTextSplitter<br/>~500 tokens, 50 overlap]
-    N --> O[Spring AI OllamaEmbeddingModel<br/>generate embeddings]
-    O --> P[Spring AI ChromaDbVectorStore<br/>store vectors]
-
-    P --> R[Mark Episode as INDEXED<br/>Job completed]
+    N --> O[Add documents to ChromaDbVectorStore<br/>(which uses OllamaEmbeddingModel to generate embeddings)]
+    O --> R[Mark Episode as INDEXED<br/>Job completed]
 
     style A fill:#3b82f6,color:#fff
     style B fill:#f59e0b,color:#000
@@ -111,7 +109,6 @@ flowchart TD
     style L fill:#eab308,color:#000
     style N fill:#16a34a,color:#fff
     style O fill:#16a34a,color:#fff
-    style P fill:#16a34a,color:#fff
     style R fill:#16a34a,color:#fff
 
     subgraph Spring Boot + Spring AI
@@ -127,7 +124,6 @@ flowchart TD
         M
         N
         O
-        P
         R
     end
 
@@ -145,11 +141,8 @@ flowchart TD
 flowchart TD
     A[User asks question] --> B[Spring Boot receives<br/>POST /api/v1/query]
 
-    B --> C[Spring AI<br/>RetrievalAugmentationAdvisor]
-
-    C --> D[OllamaEmbeddingModel<br/>embed question]
-    D --> E[ChromaDbVectorStore<br/>similarity search top_k=5]
-    E --> F[Return ranked chunks<br/>with episode metadata]
+    B --> C[Retrieve documents via<br/>Spring AI RetrievalAugmentationAdvisor]
+    C --> F[Return ranked chunks<br/>with episode metadata]
 
     F --> G[Spring AI builds<br/>augmented prompt]
 
@@ -174,8 +167,6 @@ flowchart TD
 
     style A fill:#3b82f6,color:#fff
     style C fill:#16a34a,color:#fff
-    style D fill:#16a34a,color:#fff
-    style E fill:#16a34a,color:#fff
     style K fill:#a855f7,color:#fff
     style L fill:#16a34a,color:#fff
     style M fill:#3b82f6,color:#fff
@@ -312,6 +303,7 @@ sequenceDiagram
         API->>API: Chunk transcript (uses TokenTextSplitter)
         API->>API: Add documents to Vector Store
         Note right of API: ChromaDbVectorStore uses<br/>OllamaEmbeddingModel to generate<br/>and store embeddings in ChromaDB
+        API->>DB: Update status → EMBEDDING
         API->>DB: Update status → INDEXED
     end
 
