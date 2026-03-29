@@ -1,0 +1,43 @@
+# Java / Gradle
+api/build/
+api/.gradle/
+api/bin/
+*.class
+*.jar
+*.war
+
+# Python
+ml-sidecar/.venv/
+ml-sidecar/__pycache__/
+ml-sidecar/**/__pycache__/
+*.pyc
+*.pyo
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Runtime data
+**/data/
+*.db
+*.sqlite
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Claude
+.claude/
