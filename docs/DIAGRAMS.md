@@ -2,6 +2,8 @@
 
 ## 1. System Architecture
 
+> **Note:** Spring Boot and Java versions shown are target versions for this project. Adjust to the latest stable release at implementation time.
+
 ```mermaid
 graph TB
     subgraph User Machine
@@ -9,7 +11,7 @@ graph TB
             UI[Next.js 14<br/>:3000]
         end
 
-        subgraph API["API Server (Java 25 / Spring Boot 4.0.4 + Spring AI)"]
+        subgraph API["API Server (Java / Spring Boot + Spring AI)"]
             Controllers[REST Controllers]
             Services[Service Layer]
             Jobs[Job Scheduler<br/>@Async]
@@ -286,7 +288,7 @@ erDiagram
 sequenceDiagram
     participant User
     participant Frontend as Next.js :3000
-    participant API as Spring Boot :8080<br/>+ Spring AI
+    participant API as Spring Boot + Spring AI :8080
     participant Sidecar as Python Sidecar :8100
     participant Ollama as Ollama :11434
     participant DB as PostgreSQL
@@ -306,10 +308,10 @@ sequenceDiagram
         Sidecar-->>API: [{start, end, text}, ...]
         API->>DB: Save transcript segments
         API->>DB: Update status → TRANSCRIBING
-        API->>API: Spring AI TokenTextSplitter (500 tokens)
-        API->>Ollama: OllamaEmbeddingModel (embed chunks)
+        API->>API: Chunk transcript (~500 tokens)
+        API->>Ollama: POST /api/embed (generate embeddings)
         Ollama-->>API: Embedding vectors
-        API->>ChromaDB: ChromaDbVectorStore.add(documents)
+        API->>ChromaDB: Store document embeddings
         API->>DB: Update status → INDEXED
     end
 
@@ -320,13 +322,13 @@ sequenceDiagram
 
     User->>Frontend: Ask question
     Frontend->>API: POST /api/v1/query (SSE)
-    API->>Ollama: OllamaEmbeddingModel (embed question)
+    API->>Ollama: POST /api/embed (embed question)
     Ollama-->>API: Query vector
-    API->>ChromaDB: ChromaDbVectorStore.similaritySearch()
+    API->>ChromaDB: Similarity search (top_k=5)
     ChromaDB-->>API: Ranked chunks + metadata
 
-    API->>API: RetrievalAugmentationAdvisor builds prompt
-    API->>Ollama: OllamaChatModel.stream()
+    API->>API: Build RAG prompt with context
+    API->>Ollama: POST /api/chat (stream: true)
 
     loop Token streaming
         Ollama-->>API: Token chunk
