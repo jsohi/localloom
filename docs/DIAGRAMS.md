@@ -52,6 +52,7 @@ graph TB
     EmbedModel -->|Embed Text| Ollama
     VectorStore --> Chroma
     SpringAI --> VectorStore
+    VectorStore --> EmbedModel
 
     SidecarClient -->|HTTP| Transcribe
     SidecarClient -->|HTTP| TTS
