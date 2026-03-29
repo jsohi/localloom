@@ -58,7 +58,7 @@ LocalLoom uses a **polyglot microservice architecture** with three main componen
 
 ### 2.2 Component Responsibilities
 
-#### API Server (Java / Spring Boot 4.0.4)
+#### API Server (Java / Spring Boot 4.0)
 The central orchestrator. Handles all user-facing requests, business logic, and coordinates between services.
 
 | Responsibility | Details |
@@ -417,7 +417,7 @@ in the Java layer — no longer routed through the Python sidecar.
 | Component | Version | Purpose |
 |-----------|---------|---------|
 | **Java** | 25 | Latest JDK with virtual threads, pattern matching |
-| **Spring Boot** | 4.0.4 | Web framework, DI, JPA, async |
+| **Spring Boot** | 4.0 | Web framework, DI, JPA, async |
 | **Gradle** | 9.4.1 | Build tool |
 | **Log4j2** | 2.25.3 | Structured logging (replaces Logback) |
 | **Flyway** | Latest (Spring Boot managed) | Database migrations |

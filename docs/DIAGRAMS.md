@@ -42,6 +42,8 @@ graph TB
     Controllers --> Services
     Services --> Jobs
     Services --> SpringAI
+    Services --> Chunker
+    Services --> VectorStore
     Services --> SidecarClient
     Services --> DB
     Services --> Files
@@ -49,7 +51,6 @@ graph TB
     SpringAI -->|Streaming Chat| Ollama
     EmbedModel -->|Embed Text| Ollama
     VectorStore --> Chroma
-    Chunker --> EmbedModel
     SpringAI --> VectorStore
 
     SidecarClient -->|HTTP| Transcribe
@@ -308,10 +309,9 @@ sequenceDiagram
         Sidecar-->>API: [{start, end, text}, ...]
         API->>DB: Save transcript segments
         API->>DB: Update status → TRANSCRIBING
-        API->>API: Chunk transcript (~500 tokens)
-        API->>Ollama: POST /api/embed (generate embeddings)
-        Ollama-->>API: Embedding vectors
-        API->>ChromaDB: Store document embeddings
+        API->>API: Chunk transcript (uses TokenTextSplitter)
+        API->>API: Add documents to Vector Store
+        Note right of API: ChromaDbVectorStore uses<br/>OllamaEmbeddingModel to generate<br/>and store embeddings in ChromaDB
         API->>DB: Update status → INDEXED
     end
 
@@ -322,13 +322,12 @@ sequenceDiagram
 
     User->>Frontend: Ask question
     Frontend->>API: POST /api/v1/query (SSE)
-    API->>Ollama: POST /api/embed (embed question)
-    Ollama-->>API: Query vector
-    API->>ChromaDB: Similarity search (top_k=5)
-    ChromaDB-->>API: Ranked chunks + metadata
+    API->>API: Retrieve relevant documents
+    Note right of API: Uses RetrievalAugmentationAdvisor which<br/>embeds the query and searches the VectorStore
+    API-->>API: Ranked chunks + metadata
 
     API->>API: Build RAG prompt with context
-    API->>Ollama: POST /api/chat (stream: true)
+    API->>Ollama: Stream chat completion
 
     loop Token streaming
         Ollama-->>API: Token chunk
@@ -364,7 +363,7 @@ graph LR
     end
 
     subgraph API_Layer["API Layer (Java 25)"]
-        SpringBoot[Spring Boot 4.0.4]
+        SpringBoot[Spring Boot 4.0]
         SpringAI2[Spring AI]
         JPA[Spring Data JPA]
         Flyway[Flyway Migrations]
