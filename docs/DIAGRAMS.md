@@ -301,9 +301,9 @@ sequenceDiagram
         API->>DB: Save transcript segments
         API->>DB: Update status → TRANSCRIBING
         API->>API: Chunk transcript (uses TokenTextSplitter)
+        API->>DB: Update status → EMBEDDING
         API->>API: Add documents to Vector Store
         Note right of API: ChromaDbVectorStore uses<br/>OllamaEmbeddingModel to generate<br/>and store embeddings in ChromaDB
-        API->>DB: Update status → EMBEDDING
         API->>DB: Update status → INDEXED
     end
 
