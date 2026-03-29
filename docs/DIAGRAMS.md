@@ -9,18 +9,19 @@ graph TB
             UI[Next.js 14<br/>:3000]
         end
 
-        subgraph API["API Server (Java 25 / Spring Boot 4.0.4)"]
+        subgraph API["API Server (Java 25 / Spring Boot 4.0.4 + Spring AI)"]
             Controllers[REST Controllers]
             Services[Service Layer]
             Jobs[Job Scheduler<br/>@Async]
-            OllamaClient[Ollama Client<br/>WebClient SSE]
+            SpringAI[Spring AI<br/>ChatClient + RAG Advisor]
+            EmbedModel[OllamaEmbeddingModel]
+            VectorStore[ChromaDbVectorStore]
+            Chunker[TokenTextSplitter]
             SidecarClient[ML Sidecar Client]
         end
 
         subgraph MLSidecar["ML Sidecar (Python / FastAPI)"]
             Transcribe["/transcribe<br/>Whisper"]
-            Embed["/embed<br/>sentence-transformers"]
-            Search["/search<br/>ChromaDB"]
             TTS["/tts<br/>Piper TTS"]
         end
 
@@ -31,36 +32,37 @@ graph TB
         end
 
         subgraph External
-            Ollama[Ollama<br/>:11434<br/>LLM Inference]
+            Ollama[Ollama<br/>:11434<br/>LLM + Embeddings]
         end
     end
 
     UI -->|HTTP / SSE| Controllers
     Controllers --> Services
     Services --> Jobs
-    Services --> OllamaClient
+    Services --> SpringAI
     Services --> SidecarClient
     Services --> DB
     Services --> Files
 
-    OllamaClient -->|Streaming Chat| Ollama
-    SidecarClient -->|HTTP| Transcribe
-    SidecarClient -->|HTTP| Embed
-    SidecarClient -->|HTTP| Search
-    SidecarClient -->|HTTP| TTS
+    SpringAI -->|Streaming Chat| Ollama
+    EmbedModel -->|Embed Text| Ollama
+    VectorStore --> Chroma
+    Chunker --> EmbedModel
+    SpringAI --> VectorStore
 
-    Embed --> Chroma
-    Search --> Chroma
+    SidecarClient -->|HTTP| Transcribe
+    SidecarClient -->|HTTP| TTS
 
     style UI fill:#3b82f6,color:#fff
     style Controllers fill:#16a34a,color:#fff
     style Services fill:#16a34a,color:#fff
     style Jobs fill:#16a34a,color:#fff
-    style OllamaClient fill:#16a34a,color:#fff
+    style SpringAI fill:#16a34a,color:#fff
+    style EmbedModel fill:#16a34a,color:#fff
+    style VectorStore fill:#16a34a,color:#fff
+    style Chunker fill:#16a34a,color:#fff
     style SidecarClient fill:#16a34a,color:#fff
     style Transcribe fill:#eab308,color:#000
-    style Embed fill:#eab308,color:#000
-    style Search fill:#eab308,color:#000
     style TTS fill:#eab308,color:#000
     style Ollama fill:#a855f7,color:#fff
     style DB fill:#6b7280,color:#fff
@@ -94,23 +96,22 @@ flowchart TD
     K --> L[Whisper large-v3-turbo<br/>generates timestamped segments]
     L --> M[Save transcript segments<br/>to PostgreSQL]
 
-    M --> N[Chunk transcript<br/>~500 tokens, 50 overlap]
-    N --> O[POST /embed<br/>to Python Sidecar]
-    O --> P[Generate embeddings<br/>all-MiniLM-L6-v2]
-    P --> Q[Store vectors in<br/>ChromaDB]
+    M --> N[Spring AI TokenTextSplitter<br/>~500 tokens, 50 overlap]
+    N --> O[Spring AI OllamaEmbeddingModel<br/>generate embeddings]
+    O --> P[Spring AI ChromaDbVectorStore<br/>store vectors]
 
-    Q --> R[Mark Episode as INDEXED<br/>Job completed]
+    P --> R[Mark Episode as INDEXED<br/>Job completed]
 
     style A fill:#3b82f6,color:#fff
     style B fill:#f59e0b,color:#000
     style K fill:#eab308,color:#000
     style L fill:#eab308,color:#000
-    style O fill:#eab308,color:#000
-    style P fill:#eab308,color:#000
-    style Q fill:#a855f7,color:#fff
+    style N fill:#16a34a,color:#fff
+    style O fill:#16a34a,color:#fff
+    style P fill:#16a34a,color:#fff
     style R fill:#16a34a,color:#fff
 
-    subgraph Spring Boot
+    subgraph Spring Boot + Spring AI
         B
         C
         D
@@ -122,15 +123,14 @@ flowchart TD
         J
         M
         N
+        O
+        P
         R
     end
 
     subgraph Python Sidecar
         K
         L
-        O
-        P
-        Q
     end
 ```
 
@@ -142,19 +142,19 @@ flowchart TD
 flowchart TD
     A[User asks question] --> B[Spring Boot receives<br/>POST /api/v1/query]
 
-    B --> C[Send query to<br/>Python Sidecar<br/>POST /search]
+    B --> C[Spring AI<br/>RetrievalAugmentationAdvisor]
 
-    C --> D[Embed question<br/>all-MiniLM-L6-v2]
-    D --> E[ChromaDB similarity search<br/>top_k=5, optional filters]
+    C --> D[OllamaEmbeddingModel<br/>embed question]
+    D --> E[ChromaDbVectorStore<br/>similarity search top_k=5]
     E --> F[Return ranked chunks<br/>with episode metadata]
 
-    F --> G[Build RAG prompt]
+    F --> G[Spring AI builds<br/>augmented prompt]
 
     G --> H["System: Answer using ONLY<br/>provided context. Cite sources."]
     G --> I["Context: 5 chunks with<br/>[Episode: title, timestamp]"]
     G --> J["User: original question"]
 
-    H --> K[Send to Ollama<br/>POST /api/chat<br/>stream: true]
+    H --> K[OllamaChatModel<br/>stream: true]
     I --> K
     J --> K
 
@@ -170,9 +170,9 @@ flowchart TD
     O -->|No| S[Done]
 
     style A fill:#3b82f6,color:#fff
-    style C fill:#eab308,color:#000
-    style D fill:#eab308,color:#000
-    style E fill:#a855f7,color:#fff
+    style C fill:#16a34a,color:#fff
+    style D fill:#16a34a,color:#fff
+    style E fill:#16a34a,color:#fff
     style K fill:#a855f7,color:#fff
     style L fill:#16a34a,color:#fff
     style M fill:#3b82f6,color:#fff
@@ -286,7 +286,7 @@ erDiagram
 sequenceDiagram
     participant User
     participant Frontend as Next.js :3000
-    participant API as Spring Boot :8080
+    participant API as Spring Boot :8080<br/>+ Spring AI
     participant Sidecar as Python Sidecar :8100
     participant Ollama as Ollama :11434
     participant DB as PostgreSQL
@@ -306,10 +306,10 @@ sequenceDiagram
         Sidecar-->>API: [{start, end, text}, ...]
         API->>DB: Save transcript segments
         API->>DB: Update status → TRANSCRIBING
-        API->>API: Chunk transcript (500 tokens)
-        API->>Sidecar: POST /embed (chunks + metadata)
-        Sidecar->>ChromaDB: Upsert embeddings
-        Sidecar-->>API: {count: N}
+        API->>API: Spring AI TokenTextSplitter (500 tokens)
+        API->>Ollama: OllamaEmbeddingModel (embed chunks)
+        Ollama-->>API: Embedding vectors
+        API->>ChromaDB: ChromaDbVectorStore.add(documents)
         API->>DB: Update status → INDEXED
     end
 
@@ -320,13 +320,13 @@ sequenceDiagram
 
     User->>Frontend: Ask question
     Frontend->>API: POST /api/v1/query (SSE)
-    API->>Sidecar: POST /search {query, filters}
-    Sidecar->>ChromaDB: Similarity search (top_k=5)
-    ChromaDB-->>Sidecar: Ranked chunks + metadata
-    Sidecar-->>API: Search results
+    API->>Ollama: OllamaEmbeddingModel (embed question)
+    Ollama-->>API: Query vector
+    API->>ChromaDB: ChromaDbVectorStore.similaritySearch()
+    ChromaDB-->>API: Ranked chunks + metadata
 
-    API->>API: Build RAG prompt with context
-    API->>Ollama: POST /api/chat (stream: true)
+    API->>API: RetrievalAugmentationAdvisor builds prompt
+    API->>Ollama: OllamaChatModel.stream()
 
     loop Token streaming
         Ollama-->>API: Token chunk
@@ -363,16 +363,15 @@ graph LR
 
     subgraph API_Layer["API Layer (Java 25)"]
         SpringBoot[Spring Boot 4.0.4]
+        SpringAI2[Spring AI]
         JPA[Spring Data JPA]
         Flyway[Flyway Migrations]
         Log4j2[Log4j2 2.25.3]
-        WebClient[WebClient SSE]
     end
 
     subgraph ML_Layer["ML Layer (Python 3.11+)"]
         FastAPI[FastAPI]
         Whisper[faster-whisper]
-        SentenceT[sentence-transformers]
         PiperTTS[Piper TTS]
     end
 

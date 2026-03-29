@@ -66,12 +66,16 @@ The central orchestrator. Handles all user-facing requests, business logic, and 
 | REST API | All endpoints consumed by the frontend |
 | Podcast Import | URL resolution, RSS parsing, audio download |
 | Job Management | Background task orchestration with progress tracking |
-| LLM Communication | Direct HTTP calls to Ollama for streaming inference |
+| LLM Communication | Spring AI `OllamaChatModel` for streaming inference |
+| Embeddings | Spring AI `OllamaEmbeddingModel` for vector generation |
+| Vector Search | Spring AI `ChromaDbVectorStore` for RAG retrieval |
+| RAG Pipeline | Spring AI `RetrievalAugmentationAdvisor` for prompt augmentation |
+| Text Chunking | Spring AI `TokenTextSplitter` for transcript chunking |
 | Data Persistence | CRUD operations via Spring Data JPA |
-| ML Orchestration | Delegates transcription, embedding, TTS to Python sidecar |
+| ML Orchestration | Delegates transcription and TTS to Python sidecar |
 | File Serving | Serves audio files and TTS output to frontend |
 
-**Why Java?** Enterprise-grade HTTP client (WebClient), mature job scheduling (`@Async`), strong typing, excellent for orchestration-heavy workloads. Spring Boot 4.0 brings virtual threads (Project Loom) for efficient concurrent I/O.
+**Why Java + Spring AI?** Spring AI brings native Ollama chat/embedding, ChromaDB vector store, RAG advisors, and document chunking — all auto-configured in Spring Boot. This eliminates the need for Python to handle embeddings, vector search, and chunking. Spring Boot 4.0's virtual threads handle concurrent I/O efficiently.
 
 #### ML Sidecar (Python / FastAPI)
 A lightweight internal service exposing ML capabilities. Not directly accessible from the frontend.
@@ -79,11 +83,11 @@ A lightweight internal service exposing ML capabilities. Not directly accessible
 | Responsibility | Details |
 |---------------|---------|
 | Transcription | Whisper inference on audio files |
-| Embedding | Generate vector embeddings for text chunks |
-| Vector Search | ChromaDB similarity search |
 | TTS | Text-to-speech synthesis via Piper |
 
-**Why Python?** The ML ecosystem (Whisper, sentence-transformers, ChromaDB, Piper) is Python-native. Wrapping these in a thin REST API is the cleanest integration path.
+**Why Python?** Whisper and Piper TTS have no production-quality Java equivalents. The sidecar is minimal — just 2 endpoints. Embeddings, chunking, and vector search are handled by Spring AI in the Java layer.
+
+**Note:** With Spring AI, the Python sidecar is significantly slimmer. It only handles tasks that require Python-native ML libraries (Whisper for speech-to-text, Piper for text-to-speech).
 
 #### Frontend (Next.js 14 + TypeScript)
 The user interface. Communicates exclusively with the Spring Boot API server.
@@ -393,20 +397,15 @@ POST /transcribe
   Body: multipart/form-data {audio_file, model?: string}
   Response: {segments: [{start: float, end: float, text: string}], duration: float}
 
-POST /embed
-  Body: {texts: string[], metadata: object[], collection: string}
-  Response: {count: int}
-
-POST /search
-  Body: {query: string, collection: string, top_k?: int, filter?: object}
-  Response: {results: [{text, metadata, score}]}
-
 POST /tts
   Body: {text: string, voice?: string}
   Response: audio/wav binary
 
 GET /health
   Response: {status: "ok", models_loaded: {...}}
+
+Note: Embedding, chunking, and vector search are handled by Spring AI
+in the Java layer — no longer routed through the Python sidecar.
 ```
 
 ---
@@ -423,12 +422,12 @@ GET /health
 | **Log4j2** | 2.25.3 | Structured logging (replaces Logback) |
 | **Flyway** | Latest (Spring Boot managed) | Database migrations |
 | **Spring Data JPA** | (Spring Boot managed) | ORM / repository layer |
-| **Spring WebFlux WebClient** | (Spring Boot managed) | Non-blocking HTTP for Ollama streaming |
-| **Python** | 3.11+ | ML sidecar runtime |
+| **Spring AI** | Latest (Spring Boot managed) | Ollama chat/embedding, RAG advisors, vector store, chunking |
+| **spring-ai-ollama** | (Spring AI managed) | Ollama chat + embedding model integration |
+| **spring-ai-chromadb** | (Spring AI managed) | ChromaDB vector store client |
+| **Python** | 3.11+ | ML sidecar runtime (Whisper + TTS only) |
 | **FastAPI** | 0.115+ | Sidecar REST framework |
 | **faster-whisper** | Latest | Speech-to-text |
-| **sentence-transformers** | Latest | Embedding generation |
-| **ChromaDB** | 0.5+ | Vector database |
 | **Piper TTS** | Latest | Text-to-speech |
 | **Next.js** | 14+ | Frontend framework |
 | **TypeScript** | 5.x | Frontend language |
