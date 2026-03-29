@@ -56,6 +56,8 @@ LocalLoom uses a **polyglot microservice architecture** with three main componen
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+> **Note:** Spring Boot and Java versions shown are target versions for this project. Adjust to the latest stable release at implementation time.
+
 ### 2.2 Component Responsibilities
 
 #### API Server (Java / Spring Boot 4.0)
@@ -106,7 +108,7 @@ The user interface. Communicates exclusively with the Spring Boot API server.
 While Python is the default for AI projects, the orchestration layer (HTTP routing, job scheduling, database management, file serving) benefits from Java's type safety, threading model, and mature ecosystem. Spring Boot 4.0's virtual threads handle thousands of concurrent I/O operations efficiently.
 
 **Why not Java-only?**
-The ML libraries (Whisper, sentence-transformers, ChromaDB, Piper) don't have production-quality Java equivalents. Calling them via a Python sidecar is the industry-standard pattern (used by LinkedIn, Netflix, Uber for ML features).
+The ML libraries (Whisper, Piper) don't have production-quality Java equivalents. Calling them via a Python sidecar is the industry-standard pattern (used by LinkedIn, Netflix, Uber for ML features).
 
 **Why not a monolith?**
 The sidecar pattern allows independent scaling and deployment. The Python sidecar can be restarted (e.g., after a model change) without affecting the API server. Each service can be developed and tested independently.
@@ -181,7 +183,7 @@ Each podcast gets its own ChromaDB collection: `podcast_{podcast_id}`
 |-------|------|-------------|
 | `id` | string | `{episode_id}_{chunk_index}` |
 | `document` | string | Chunk text (~500 tokens) |
-| `embedding` | float[] | 384-dim vector (all-MiniLM-L6-v2) |
+| `embedding` | float[] | Vector (dimension depends on Ollama embedding model, e.g. nomic-embed-text) |
 | `metadata.episode_id` | string | Episode UUID |
 | `metadata.podcast_id` | string | Podcast UUID |
 | `metadata.episode_title` | string | For citation display |
@@ -446,7 +448,7 @@ in the Java layer — no longer routed through the Python sidecar.
 | `llama3.1:8b-instruct-q5_K_M` | ~6 GB | 8 GB | Default LLM — good quality, fast on M1+ |
 | `llama3.1:70b-instruct-q4_K_M` | ~40 GB | 48 GB | Premium LLM — for M2/M3/M4 Max/Ultra |
 | `large-v3-turbo` (Whisper) | ~3 GB | 4 GB | Default transcription — near-best quality, 2-3x faster |
-| `all-MiniLM-L6-v2` | 80 MB | 200 MB | Embeddings — fast, good quality |
+| `nomic-embed-text` | ~275 MB | 500 MB | Embeddings via Ollama — 768-dim, good quality |
 | `en_US-amy-medium` (Piper) | 60 MB | 100 MB | TTS — natural voice, fast |
 
 ### 6.3 Log4j2 Configuration
