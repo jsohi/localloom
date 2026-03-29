@@ -364,7 +364,7 @@ graph LR
 
     subgraph API_Layer["API Layer (Java 25)"]
         SpringBoot[Spring Boot 4.0]
-        SpringAI2[Spring AI]
+        SpringAI[Spring AI]
         JPA[Spring Data JPA]
         Flyway[Flyway Migrations]
         Log4j2[Log4j2 2.25.3]
