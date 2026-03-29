@@ -240,13 +240,13 @@ User submits URL
 └─────────┬───────────┘
           ▼
 ┌─────────────────────┐
-│ 5. Chunk + Embed     │  Spring Boot → Python Sidecar
+│ 5. Chunk + Embed     │  Spring Boot (Spring AI)
 │                      │
-│  Split transcript    │
-│  into 500-token      │
-│  chunks (50 overlap) │
-│  POST /embed         │
-│  Store in ChromaDB   │
+│  TokenTextSplitter   │
+│  500-token chunks    │
+│  (50 overlap)        │
+│  OllamaEmbeddingModel│
+│  → ChromaDbVectorStore│
 └─────────┬───────────┘
           ▼
 ┌─────────────────────┐
@@ -265,14 +265,14 @@ User asks: "What did they say about AI regulation?"
        │
        ▼
 ┌─────────────────────────┐
-│ 1. Embed Question        │  Spring Boot → Python Sidecar
-│    POST /search          │
-│    query + optional      │
-│    podcast/episode filter│
+│ 1. Embed + Search        │  Spring Boot (Spring AI)
+│    RetrievalAugmentation │
+│    Advisor embeds query  │
+│    and searches VectorStore│
 └─────────┬───────────────┘
           ▼
 ┌─────────────────────────┐
-│ 2. Vector Search         │  Python Sidecar (ChromaDB)
+│ 2. Vector Search         │  Spring AI (ChromaDbVectorStore)
 │                          │
 │  Similarity search       │
 │  top_k = 5               │
