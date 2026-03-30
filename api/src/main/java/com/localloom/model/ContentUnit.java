@@ -75,7 +75,7 @@ public class ContentUnit {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(final UUID id) {
         this.id = id;
     }
 
@@ -83,7 +83,7 @@ public class ContentUnit {
         return source;
     }
 
-    public void setSource(Source source) {
+    public void setSource(final Source source) {
         this.source = source;
     }
 
@@ -91,7 +91,7 @@ public class ContentUnit {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(final String title) {
         this.title = title;
     }
 
@@ -99,7 +99,7 @@ public class ContentUnit {
         return contentType;
     }
 
-    public void setContentType(ContentType contentType) {
+    public void setContentType(final ContentType contentType) {
         this.contentType = contentType;
     }
 
@@ -107,7 +107,7 @@ public class ContentUnit {
         return externalId;
     }
 
-    public void setExternalId(String externalId) {
+    public void setExternalId(final String externalId) {
         this.externalId = externalId;
     }
 
@@ -115,7 +115,7 @@ public class ContentUnit {
         return externalUrl;
     }
 
-    public void setExternalUrl(String externalUrl) {
+    public void setExternalUrl(final String externalUrl) {
         this.externalUrl = externalUrl;
     }
 
@@ -123,7 +123,7 @@ public class ContentUnit {
         return status;
     }
 
-    public void setStatus(ContentUnitStatus status) {
+    public void setStatus(final ContentUnitStatus status) {
         this.status = status;
     }
 
@@ -131,7 +131,7 @@ public class ContentUnit {
         return rawText;
     }
 
-    public void setRawText(String rawText) {
+    public void setRawText(final String rawText) {
         this.rawText = rawText;
     }
 
@@ -139,7 +139,7 @@ public class ContentUnit {
         return metadata;
     }
 
-    public void setMetadata(String metadata) {
+    public void setMetadata(final String metadata) {
         this.metadata = metadata;
     }
 
@@ -147,7 +147,7 @@ public class ContentUnit {
         return publishedAt;
     }
 
-    public void setPublishedAt(Instant publishedAt) {
+    public void setPublishedAt(final Instant publishedAt) {
         this.publishedAt = publishedAt;
     }
 
@@ -159,22 +159,22 @@ public class ContentUnit {
         return fragments;
     }
 
-    public void setFragments(List<ContentFragment> fragments) {
+    public void setFragments(final List<ContentFragment> fragments) {
         this.fragments = fragments;
     }
 
-    public void addFragment(ContentFragment fragment) {
+    public void addFragment(final ContentFragment fragment) {
         fragments.add(fragment);
         fragment.setContentUnit(this);
     }
 
-    public void removeFragment(ContentFragment fragment) {
+    public void removeFragment(final ContentFragment fragment) {
         fragments.remove(fragment);
         fragment.setContentUnit(null);
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof ContentUnit other)) return false;
         return id != null && id.equals(other.id);

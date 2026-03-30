@@ -57,7 +57,7 @@ public class Message {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(final UUID id) {
         this.id = id;
     }
 
@@ -65,7 +65,7 @@ public class Message {
         return conversation;
     }
 
-    public void setConversation(Conversation conversation) {
+    public void setConversation(final Conversation conversation) {
         this.conversation = conversation;
     }
 
@@ -73,7 +73,7 @@ public class Message {
         return role;
     }
 
-    public void setRole(MessageRole role) {
+    public void setRole(final MessageRole role) {
         this.role = role;
     }
 
@@ -81,7 +81,7 @@ public class Message {
         return content;
     }
 
-    public void setContent(String content) {
+    public void setContent(final String content) {
         this.content = content;
     }
 
@@ -89,7 +89,7 @@ public class Message {
         return sources;
     }
 
-    public void setSources(String sources) {
+    public void setSources(final String sources) {
         this.sources = sources;
     }
 
@@ -97,7 +97,7 @@ public class Message {
         return audioPath;
     }
 
-    public void setAudioPath(String audioPath) {
+    public void setAudioPath(final String audioPath) {
         this.audioPath = audioPath;
     }
 
@@ -106,7 +106,7 @@ public class Message {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof Message other)) return false;
         return id != null && id.equals(other.id);

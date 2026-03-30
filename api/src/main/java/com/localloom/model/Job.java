@@ -56,7 +56,7 @@ public class Job {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(final UUID id) {
         this.id = id;
     }
 
@@ -64,7 +64,7 @@ public class Job {
         return type;
     }
 
-    public void setType(JobType type) {
+    public void setType(final JobType type) {
         this.type = type;
     }
 
@@ -72,7 +72,7 @@ public class Job {
         return entityId;
     }
 
-    public void setEntityId(UUID entityId) {
+    public void setEntityId(final UUID entityId) {
         this.entityId = entityId;
     }
 
@@ -80,7 +80,7 @@ public class Job {
         return entityType;
     }
 
-    public void setEntityType(EntityType entityType) {
+    public void setEntityType(final EntityType entityType) {
         this.entityType = entityType;
     }
 
@@ -88,7 +88,7 @@ public class Job {
         return status;
     }
 
-    public void setStatus(JobStatus status) {
+    public void setStatus(final JobStatus status) {
         this.status = status;
     }
 
@@ -96,7 +96,7 @@ public class Job {
         return progress;
     }
 
-    public void setProgress(double progress) {
+    public void setProgress(final double progress) {
         this.progress = progress;
     }
 
@@ -104,7 +104,7 @@ public class Job {
         return errorMessage;
     }
 
-    public void setErrorMessage(String errorMessage) {
+    public void setErrorMessage(final String errorMessage) {
         this.errorMessage = errorMessage;
     }
 
@@ -116,12 +116,12 @@ public class Job {
         return completedAt;
     }
 
-    public void setCompletedAt(Instant completedAt) {
+    public void setCompletedAt(final Instant completedAt) {
         this.completedAt = completedAt;
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof Job other)) return false;
         return id != null && id.equals(other.id);

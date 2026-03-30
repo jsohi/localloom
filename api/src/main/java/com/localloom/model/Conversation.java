@@ -38,7 +38,7 @@ public class Conversation {
 
     @PrePersist
     void prePersist() {
-        Instant now = Instant.now();
+        final var now = Instant.now();
         createdAt = now;
         updatedAt = now;
     }
@@ -52,7 +52,7 @@ public class Conversation {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(final UUID id) {
         this.id = id;
     }
 
@@ -60,7 +60,7 @@ public class Conversation {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(final String title) {
         this.title = title;
     }
 
@@ -72,7 +72,7 @@ public class Conversation {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Instant updatedAt) {
+    public void setUpdatedAt(final Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
 
@@ -80,22 +80,22 @@ public class Conversation {
         return messages;
     }
 
-    public void setMessages(List<Message> messages) {
+    public void setMessages(final List<Message> messages) {
         this.messages = messages;
     }
 
-    public void addMessage(Message message) {
+    public void addMessage(final Message message) {
         messages.add(message);
         message.setConversation(this);
     }
 
-    public void removeMessage(Message message) {
+    public void removeMessage(final Message message) {
         messages.remove(message);
         message.setConversation(null);
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof Conversation other)) return false;
         return id != null && id.equals(other.id);

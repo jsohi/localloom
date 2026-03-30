@@ -48,7 +48,7 @@ public class ContentFragment {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(final Long id) {
         this.id = id;
     }
 
@@ -56,7 +56,7 @@ public class ContentFragment {
         return contentUnit;
     }
 
-    public void setContentUnit(ContentUnit contentUnit) {
+    public void setContentUnit(final ContentUnit contentUnit) {
         this.contentUnit = contentUnit;
     }
 
@@ -64,7 +64,7 @@ public class ContentFragment {
         return fragmentType;
     }
 
-    public void setFragmentType(FragmentType fragmentType) {
+    public void setFragmentType(final FragmentType fragmentType) {
         this.fragmentType = fragmentType;
     }
 
@@ -72,7 +72,7 @@ public class ContentFragment {
         return sequenceIndex;
     }
 
-    public void setSequenceIndex(int sequenceIndex) {
+    public void setSequenceIndex(final int sequenceIndex) {
         this.sequenceIndex = sequenceIndex;
     }
 
@@ -80,7 +80,7 @@ public class ContentFragment {
         return text;
     }
 
-    public void setText(String text) {
+    public void setText(final String text) {
         this.text = text;
     }
 
@@ -88,12 +88,12 @@ public class ContentFragment {
         return location;
     }
 
-    public void setLocation(String location) {
+    public void setLocation(final String location) {
         this.location = location;
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof ContentFragment other)) return false;
         return id != null && id.equals(other.id);

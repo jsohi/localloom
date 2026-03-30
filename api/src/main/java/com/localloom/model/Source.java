@@ -69,7 +69,7 @@ public class Source {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(final UUID id) {
         this.id = id;
     }
 
@@ -77,7 +77,7 @@ public class Source {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(final String name) {
         this.name = name;
     }
 
@@ -85,7 +85,7 @@ public class Source {
         return description;
     }
 
-    public void setDescription(String description) {
+    public void setDescription(final String description) {
         this.description = description;
     }
 
@@ -93,7 +93,7 @@ public class Source {
         return sourceType;
     }
 
-    public void setSourceType(SourceType sourceType) {
+    public void setSourceType(final SourceType sourceType) {
         this.sourceType = sourceType;
     }
 
@@ -101,7 +101,7 @@ public class Source {
         return originUrl;
     }
 
-    public void setOriginUrl(String originUrl) {
+    public void setOriginUrl(final String originUrl) {
         this.originUrl = originUrl;
     }
 
@@ -109,7 +109,7 @@ public class Source {
         return iconUrl;
     }
 
-    public void setIconUrl(String iconUrl) {
+    public void setIconUrl(final String iconUrl) {
         this.iconUrl = iconUrl;
     }
 
@@ -117,7 +117,7 @@ public class Source {
         return config;
     }
 
-    public void setConfig(String config) {
+    public void setConfig(final String config) {
         this.config = config;
     }
 
@@ -125,7 +125,7 @@ public class Source {
         return syncStatus;
     }
 
-    public void setSyncStatus(SyncStatus syncStatus) {
+    public void setSyncStatus(final SyncStatus syncStatus) {
         this.syncStatus = syncStatus;
     }
 
@@ -133,7 +133,7 @@ public class Source {
         return lastSyncedAt;
     }
 
-    public void setLastSyncedAt(Instant lastSyncedAt) {
+    public void setLastSyncedAt(final Instant lastSyncedAt) {
         this.lastSyncedAt = lastSyncedAt;
     }
 
@@ -145,22 +145,22 @@ public class Source {
         return contentUnits;
     }
 
-    public void setContentUnits(List<ContentUnit> contentUnits) {
+    public void setContentUnits(final List<ContentUnit> contentUnits) {
         this.contentUnits = contentUnits;
     }
 
-    public void addContentUnit(ContentUnit unit) {
+    public void addContentUnit(final ContentUnit unit) {
         contentUnits.add(unit);
         unit.setSource(this);
     }
 
-    public void removeContentUnit(ContentUnit unit) {
+    public void removeContentUnit(final ContentUnit unit) {
         contentUnits.remove(unit);
         unit.setSource(null);
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof Source other)) return false;
         return id != null && id.equals(other.id);
