@@ -20,6 +20,7 @@ import com.localloom.service.SourceImportService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,6 +36,7 @@ class RepositoryIT {
   @MockitoBean private AudioService audioService;
   @MockitoBean private SourceImportService sourceImportService;
   @MockitoBean private EmbeddingModel embeddingModel;
+  @MockitoBean private ChatModel chatModel;
 
   @Autowired private SourceRepository sourceRepository;
   @Autowired private ContentUnitRepository contentUnitRepository;

@@ -18,6 +18,7 @@ import com.localloom.service.EmbeddingService;
 import com.localloom.service.SourceImportService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,6 +54,7 @@ class SourceControllerIT {
   @MockitoBean private EmbeddingService embeddingService;
   @MockitoBean private SourceImportService sourceImportService;
   @MockitoBean private EmbeddingModel embeddingModel;
+  @MockitoBean private ChatModel chatModel;
 
   @Test
   void createSourceReturnsCreated() throws Exception {

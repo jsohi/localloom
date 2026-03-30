@@ -9,6 +9,7 @@ import com.localloom.model.SourceType;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -24,6 +25,7 @@ class EmbeddingServiceIT {
 
   @MockitoBean private AudioService audioService;
   @MockitoBean private SourceImportService sourceImportService;
+  @MockitoBean private ChatModel chatModel;
 
   @Test
   void embedAndSearch() {

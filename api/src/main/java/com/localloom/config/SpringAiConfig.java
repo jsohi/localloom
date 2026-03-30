@@ -9,7 +9,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -36,7 +35,6 @@ public class SpringAiConfig {
   }
 
   @Bean
-  @ConditionalOnBean(ChatModel.class)
   ChatClient chatClient(
       final ChatModel chatModel,
       @Value("${localloom.chat.system-prompt}") final String systemPrompt) {

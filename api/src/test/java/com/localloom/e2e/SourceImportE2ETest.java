@@ -33,6 +33,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -63,6 +64,7 @@ class SourceImportE2ETest {
   @MockitoBean private UrlResolver urlResolver;
   @MockitoBean private AudioService audioService;
   @MockitoBean private EmbeddingModel embeddingModel;
+  @MockitoBean private ChatModel chatModel;
 
   @BeforeAll
   static void startWireMock() {
