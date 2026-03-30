@@ -569,13 +569,25 @@ in the Java layer — no longer routed through the Python sidecar.
 
 ### 6.2 ML Model Recommendations
 
+> **Recommended baseline:** 48 GB unified memory (e.g., Apple M-series). This comfortably runs `llama4:scout` alongside embeddings, ChromaDB, and the full stack.
+
 | Model | Size | RAM | Use Case |
 |-------|------|-----|----------|
-| `llama4:scout` | ~17 GB | 24 GB | Default LLM — Llama 4 Scout, good quality, fast on M1+ |
-| `llama4:maverick` | ~50 GB | 64 GB | Premium LLM — Llama 4 Maverick, for M2/M3/M4 Max/Ultra |
+| `llama4:scout` | ~17 GB | 24 GB | Default LLM — Llama 4 Scout, good quality, fast on 48 GB+ machines |
+| `llama4:maverick` | ~50 GB | 64 GB | Premium LLM — Llama 4 Maverick, requires 64 GB+ RAM (M2/M3/M4 Max/Ultra) |
 | `large-v3-turbo` (Whisper) | ~3 GB | 4 GB | Default transcription — near-best quality, 2-3x faster |
 | `nomic-embed-text` | ~275 MB | 500 MB | Embeddings via Ollama — 768-dim, good quality |
 | `en_US-amy-medium` (Piper) | 60 MB | 100 MB | TTS — natural voice, fast |
+
+**Memory budget (48 GB system):**
+| Component | Estimated RAM |
+|-----------|--------------|
+| `llama4:scout` | ~24 GB |
+| `nomic-embed-text` | ~500 MB |
+| Whisper `large-v3-turbo` | ~4 GB |
+| PostgreSQL + ChromaDB | ~2 GB |
+| Spring Boot + Python Sidecar | ~2 GB |
+| OS + headroom | ~15.5 GB |
 
 ### 6.3 Log4j2 Configuration
 
