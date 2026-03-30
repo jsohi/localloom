@@ -31,6 +31,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Format check (Spotless)
+        run: ./gradlew spotlessCheck
+
       - name: Compile
         run: ./gradlew compileJava
 
@@ -73,6 +76,10 @@ jobs:
       - name: Lint
         if: steps.check.outcome == 'success'
         run: uv run ruff check .
+
+      - name: Format check
+        if: steps.check.outcome == 'success'
+        run: uv run ruff format --check .
 
       - name: Test
         if: steps.check.outcome == 'success'

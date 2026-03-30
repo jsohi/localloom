@@ -3,16 +3,6 @@ package com.localloom.service;
 import com.localloom.model.SourceType;
 import com.localloom.service.dto.ResolvedEpisode;
 import com.localloom.service.dto.ResolvedPodcast;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -21,411 +11,384 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.w3c.dom.Element;
 
 @Service
 public class UrlResolver {
 
-    private static final Logger log = LogManager.getLogger(UrlResolver.class);
+  private static final Logger log = LogManager.getLogger(UrlResolver.class);
 
-    private static final Pattern YOUTUBE_WATCH     = Pattern.compile("(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?.*v=([\\w-]+)");
-    private static final Pattern YOUTUBE_SHORT     = Pattern.compile("(?:https?://)?youtu\\.be/([\\w-]+)");
-    private static final Pattern YOUTUBE_PLAYLIST  = Pattern.compile("(?:https?://)?(?:www\\.)?youtube\\.com/playlist\\?.*list=([\\w-]+)");
-    private static final Pattern APPLE_PODCASTS    = Pattern.compile("(?:https?://)?podcasts\\.apple\\.com/.*/id(\\d+)");
-    private static final Pattern SPOTIFY_SHOW      = Pattern.compile("(?:https?://)?open\\.spotify\\.com/show/([\\w]+)");
+  private static final Pattern YOUTUBE_WATCH =
+      Pattern.compile("(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?.*v=([\\w-]+)");
+  private static final Pattern YOUTUBE_SHORT =
+      Pattern.compile("(?:https?://)?youtu\\.be/([\\w-]+)");
+  private static final Pattern YOUTUBE_PLAYLIST =
+      Pattern.compile("(?:https?://)?(?:www\\.)?youtube\\.com/playlist\\?.*list=([\\w-]+)");
+  private static final Pattern APPLE_PODCASTS =
+      Pattern.compile("(?:https?://)?podcasts\\.apple\\.com/.*/id(\\d+)");
+  private static final Pattern SPOTIFY_SHOW =
+      Pattern.compile("(?:https?://)?open\\.spotify\\.com/show/([\\w]+)");
 
-    private static final String ITUNES_LOOKUP_URL  = "https://itunes.apple.com/lookup?id=%s&entity=podcast";
-    private static final String ITUNES_SEARCH_URL  = "https://itunes.apple.com/search?term=%s&media=podcast&entity=podcast&limit=1";
-    private static final String SPOTIFY_OEMBED_URL = "https://open.spotify.com/oembed?url=%s";
+  private static final String ITUNES_LOOKUP_URL =
+      "https://itunes.apple.com/lookup?id=%s&entity=podcast";
+  private static final String ITUNES_SEARCH_URL =
+      "https://itunes.apple.com/search?term=%s&media=podcast&entity=podcast&limit=1";
+  private static final String SPOTIFY_OEMBED_URL = "https://open.spotify.com/oembed?url=%s";
 
-    private final RestClient restClient;
+  private final RestClient restClient;
 
-    public UrlResolver(final RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder.build();
+  public UrlResolver(final RestClient.Builder restClientBuilder) {
+    this.restClient = restClientBuilder.build();
+  }
+
+  // -------------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------------
+
+  public enum UrlType {
+    YOUTUBE,
+    APPLE_PODCASTS,
+    SPOTIFY,
+    RSS
+  }
+
+  /** Detects the type of the given URL based on domain and path pattern matching. */
+  public UrlType detectType(final String url) {
+    if (url == null || url.isBlank()) {
+      throw new IllegalArgumentException("URL must not be blank");
     }
-
-    // -------------------------------------------------------------------------
-    // Public API
-    // -------------------------------------------------------------------------
-
-    public enum UrlType {
-        YOUTUBE, APPLE_PODCASTS, SPOTIFY, RSS
+    if (YOUTUBE_WATCH.matcher(url).find()
+        || YOUTUBE_SHORT.matcher(url).find()
+        || YOUTUBE_PLAYLIST.matcher(url).find()) {
+      log.debug("Detected URL type YOUTUBE for: {}", url);
+      return UrlType.YOUTUBE;
     }
-
-    /**
-     * Detects the type of the given URL based on domain and path pattern matching.
-     */
-    public UrlType detectType(final String url) {
-        if (url == null || url.isBlank()) {
-            throw new IllegalArgumentException("URL must not be blank");
-        }
-        if (YOUTUBE_WATCH.matcher(url).find()
-                || YOUTUBE_SHORT.matcher(url).find()
-                || YOUTUBE_PLAYLIST.matcher(url).find()) {
-            log.debug("Detected URL type YOUTUBE for: {}", url);
-            return UrlType.YOUTUBE;
-        }
-        if (APPLE_PODCASTS.matcher(url).find()) {
-            log.debug("Detected URL type APPLE_PODCASTS for: {}", url);
-            return UrlType.APPLE_PODCASTS;
-        }
-        if (SPOTIFY_SHOW.matcher(url).find()) {
-            log.debug("Detected URL type SPOTIFY for: {}", url);
-            return UrlType.SPOTIFY;
-        }
-        log.debug("No specific match for URL, treating as RSS: {}", url);
-        return UrlType.RSS;
+    if (APPLE_PODCASTS.matcher(url).find()) {
+      log.debug("Detected URL type APPLE_PODCASTS for: {}", url);
+      return UrlType.APPLE_PODCASTS;
     }
-
-    /**
-     * Resolves the given URL to a {@link ResolvedPodcast} containing metadata and episode list.
-     */
-    public ResolvedPodcast resolve(final String url) {
-        final var type = detectType(url);
-        log.info("Resolving URL as {}: {}", type, url);
-        return switch (type) {
-            case YOUTUBE       -> resolveYoutube(url);
-            case APPLE_PODCASTS -> resolveApplePodcasts(url);
-            case SPOTIFY       -> resolveSpotify(url);
-            case RSS           -> resolveRss(url);
-        };
+    if (SPOTIFY_SHOW.matcher(url).find()) {
+      log.debug("Detected URL type SPOTIFY for: {}", url);
+      return UrlType.SPOTIFY;
     }
+    log.debug("No specific match for URL, treating as RSS: {}", url);
+    return UrlType.RSS;
+  }
 
-    // -------------------------------------------------------------------------
-    // Private resolvers
-    // -------------------------------------------------------------------------
+  /** Resolves the given URL to a {@link ResolvedPodcast} containing metadata and episode list. */
+  public ResolvedPodcast resolve(final String url) {
+    final var type = detectType(url);
+    log.info("Resolving URL as {}: {}", type, url);
+    return switch (type) {
+      case YOUTUBE -> resolveYoutube(url);
+      case APPLE_PODCASTS -> resolveApplePodcasts(url);
+      case SPOTIFY -> resolveSpotify(url);
+      case RSS -> resolveRss(url);
+    };
+  }
 
-    /**
-     * Resolves a YouTube URL. Extracts the video or playlist ID from the URL and
-     * returns stub metadata.
-     *
-     * TODO: Replace stub with a full yt-dlp --dump-json subprocess call via
-     *       ProcessBuilder to retrieve real title, description, uploader, and
-     *       episode list (for playlists / channels).
-     */
-    private ResolvedPodcast resolveYoutube(final String url) {
-        log.debug("Resolving YouTube URL: {}", url);
+  // -------------------------------------------------------------------------
+  // Private resolvers
+  // -------------------------------------------------------------------------
 
-        final var videoId = extractYoutubeId(url);
-        log.info("Extracted YouTube ID: {}", videoId);
+  /**
+   * Resolves a YouTube URL. Extracts the video or playlist ID from the URL and returns stub
+   * metadata.
+   *
+   * <p>TODO: Replace stub with a full yt-dlp --dump-json subprocess call via ProcessBuilder to
+   * retrieve real title, description, uploader, and episode list (for playlists / channels).
+   */
+  private ResolvedPodcast resolveYoutube(final String url) {
+    log.debug("Resolving YouTube URL: {}", url);
 
-        // TODO: invoke yt-dlp for real metadata, e.g.:
-        //   ProcessBuilder pb = new ProcessBuilder("yt-dlp", "--dump-json", "--no-playlist", url);
-        //   Process proc = pb.start();
-        //   String json = new String(proc.getInputStream().readAllBytes());
-        //   -- then parse the JSON for title, uploader, description, thumbnail, etc.
+    final var videoId = extractYoutubeId(url);
+    log.info("Extracted YouTube ID: {}", videoId);
 
-        final var episodes = List.of(
-                new ResolvedEpisode(
-                        "YouTube video " + videoId,
-                        null,
-                        url,
-                        null,
-                        null,
-                        videoId
-                )
-        );
+    // TODO: invoke yt-dlp for real metadata, e.g.:
+    //   ProcessBuilder pb = new ProcessBuilder("yt-dlp", "--dump-json", "--no-playlist", url);
+    //   Process proc = pb.start();
+    //   String json = new String(proc.getInputStream().readAllBytes());
+    //   -- then parse the JSON for title, uploader, description, thumbnail, etc.
 
-        return new ResolvedPodcast(
-                "YouTube: " + videoId,
-                null,
-                null,
-                null,
-                null,
-                url,
-                SourceType.PODCAST,
-                episodes
-        );
+    final var episodes =
+        List.of(new ResolvedEpisode("YouTube video " + videoId, null, url, null, null, videoId));
+
+    return new ResolvedPodcast(
+        "YouTube: " + videoId, null, null, null, null, url, SourceType.PODCAST, episodes);
+  }
+
+  /**
+   * Resolves an Apple Podcasts URL by extracting the podcast ID and calling the iTunes Lookup API.
+   */
+  private ResolvedPodcast resolveApplePodcasts(final String url) {
+    log.debug("Resolving Apple Podcasts URL: {}", url);
+
+    final var m = APPLE_PODCASTS.matcher(url);
+    if (!m.find()) {
+      throw new IllegalArgumentException(
+          "Could not extract podcast ID from Apple Podcasts URL: " + url);
     }
+    final var podcastId = m.group(1);
+    log.info("Extracted Apple Podcasts ID: {}", podcastId);
 
-    /**
-     * Resolves an Apple Podcasts URL by extracting the podcast ID and calling the
-     * iTunes Lookup API.
-     */
-    private ResolvedPodcast resolveApplePodcasts(final String url) {
-        log.debug("Resolving Apple Podcasts URL: {}", url);
-
-        final var m = APPLE_PODCASTS.matcher(url);
-        if (!m.find()) {
-            throw new IllegalArgumentException("Could not extract podcast ID from Apple Podcasts URL: " + url);
-        }
-        final var podcastId = m.group(1);
-        log.info("Extracted Apple Podcasts ID: {}", podcastId);
-
-        final var lookupUrl = ITUNES_LOOKUP_URL.formatted(podcastId);
-        log.debug("Calling iTunes Lookup API: {}", lookupUrl);
-
-        @SuppressWarnings("unchecked")
-        final var response = (java.util.Map<String, Object>) restClient.get()
-                .uri(lookupUrl)
-                .retrieve()
-                .body(java.util.Map.class);
-
-        return parseiTunesResponse(response, url);
-    }
-
-    /**
-     * Resolves a Spotify show URL via the Spotify oEmbed API to get the show name,
-     * then searches the iTunes API to find the corresponding podcast feed.
-     */
-    private ResolvedPodcast resolveSpotify(final String url) {
-        log.debug("Resolving Spotify URL: {}", url);
-
-        final var oEmbedUrl = SPOTIFY_OEMBED_URL.formatted(
-                URLEncoder.encode(url, StandardCharsets.UTF_8));
-        log.debug("Calling Spotify oEmbed API: {}", oEmbedUrl);
-
-        @SuppressWarnings("unchecked")
-        final var oEmbedResponse = (java.util.Map<String, Object>) restClient.get()
-                .uri(oEmbedUrl)
-                .retrieve()
-                .body(java.util.Map.class);
-
-        final var showName = oEmbedResponse != null ? (String) oEmbedResponse.get("title") : null;
-        if (showName == null || showName.isBlank()) {
-            throw new IllegalStateException("Could not retrieve show name from Spotify oEmbed for: " + url);
-        }
-        log.info("Spotify show name from oEmbed: {}", showName);
-
-        final var searchUrl = ITUNES_SEARCH_URL.formatted(
-                URLEncoder.encode(showName, StandardCharsets.UTF_8));
-        log.debug("Searching iTunes for: {}", searchUrl);
-
-        @SuppressWarnings("unchecked")
-        final var searchResponse = (java.util.Map<String, Object>) restClient.get()
-                .uri(searchUrl)
-                .retrieve()
-                .body(java.util.Map.class);
-
-        return parseiTunesResponse(searchResponse, url);
-    }
-
-    /**
-     * Resolves a generic RSS feed URL by fetching the XML and parsing it with the
-     * standard Java DOM parser (no extra dependency required).
-     */
-    private ResolvedPodcast resolveRss(final String feedUrl) {
-        log.debug("Resolving RSS feed: {}", feedUrl);
-
-        final var xmlBytes = restClient.get()
-                .uri(feedUrl)
-                .retrieve()
-                .body(byte[].class);
-
-        if (xmlBytes == null || xmlBytes.length == 0) {
-            throw new IllegalStateException("Empty response fetching RSS feed: " + feedUrl);
-        }
-
-        try {
-            final var factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            final var builder = factory.newDocumentBuilder();
-            final var doc = builder.parse(new ByteArrayInputStream(xmlBytes));
-            doc.getDocumentElement().normalize();
-
-            final var channel = (Element) doc.getElementsByTagName("channel").item(0);
-            if (channel == null) {
-                throw new IllegalStateException("No <channel> element found in RSS feed: " + feedUrl);
-            }
-
-            final var title       = firstElementText(channel, "title");
-            final var description = firstElementText(channel, "description");
-            final var author      = firstElementText(channel, "itunes:author");
-            final var artworkUrl  = extractRssArtwork(channel);
-
-            final var episodes = new ArrayList<ResolvedEpisode>();
-            final var items = channel.getElementsByTagName("item");
-            for (int i = 0; i < items.getLength(); i++) {
-                final var item = (Element) items.item(i);
-                episodes.add(parseRssItem(item));
-            }
-
-            log.info("Parsed RSS feed '{}': {} episode(s)", title, episodes.size());
-
-            return new ResolvedPodcast(
-                    title,
-                    author,
-                    description,
-                    artworkUrl,
-                    feedUrl,
-                    feedUrl,
-                    SourceType.PODCAST,
-                    episodes
-            );
-
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse RSS feed: " + feedUrl, e);
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private String extractYoutubeId(final String url) {
-        final var watchMatcher = YOUTUBE_WATCH.matcher(url);
-        if (watchMatcher.find()) {
-            return watchMatcher.group(1);
-        }
-        final var shortMatcher = YOUTUBE_SHORT.matcher(url);
-        if (shortMatcher.find()) {
-            return shortMatcher.group(1);
-        }
-        final var playlistMatcher = YOUTUBE_PLAYLIST.matcher(url);
-        if (playlistMatcher.find()) {
-            return playlistMatcher.group(1);
-        }
-        throw new IllegalArgumentException("Could not extract YouTube ID from URL: " + url);
-    }
+    final var lookupUrl = ITUNES_LOOKUP_URL.formatted(podcastId);
+    log.debug("Calling iTunes Lookup API: {}", lookupUrl);
 
     @SuppressWarnings("unchecked")
-    private ResolvedPodcast parseiTunesResponse(final java.util.Map<String, Object> response, final String sourceUrl) {
-        if (response == null) {
-            throw new IllegalStateException("Null response from iTunes API for URL: " + sourceUrl);
-        }
+    final var response =
+        (java.util.Map<String, Object>)
+            restClient.get().uri(lookupUrl).retrieve().body(java.util.Map.class);
 
-        final var results =
-                (List<java.util.Map<String, Object>>) response.get("results");
+    return parseiTunesResponse(response, url);
+  }
 
-        if (results == null || results.isEmpty()) {
-            throw new IllegalStateException("No results from iTunes API for URL: " + sourceUrl);
-        }
+  /**
+   * Resolves a Spotify show URL via the Spotify oEmbed API to get the show name, then searches the
+   * iTunes API to find the corresponding podcast feed.
+   */
+  private ResolvedPodcast resolveSpotify(final String url) {
+    log.debug("Resolving Spotify URL: {}", url);
 
-        final var result = results.get(0);
+    final var oEmbedUrl =
+        SPOTIFY_OEMBED_URL.formatted(URLEncoder.encode(url, StandardCharsets.UTF_8));
+    log.debug("Calling Spotify oEmbed API: {}", oEmbedUrl);
 
-        final var title      = (String) result.get("collectionName");
-        final var author     = (String) result.get("artistName");
-        final var artwork    = (String) result.getOrDefault("artworkUrl600", result.get("artworkUrl100"));
-        final var feedUrl    = (String) result.get("feedUrl");
-        var description = (String) null; // iTunes Lookup does not return a description field
+    @SuppressWarnings("unchecked")
+    final var oEmbedResponse =
+        (java.util.Map<String, Object>)
+            restClient.get().uri(oEmbedUrl).retrieve().body(java.util.Map.class);
 
-        log.info("iTunes resolved podcast: '{}' by '{}', feedUrl={}", title, author, feedUrl);
+    final var showName = oEmbedResponse != null ? (String) oEmbedResponse.get("title") : null;
+    if (showName == null || showName.isBlank()) {
+      throw new IllegalStateException(
+          "Could not retrieve show name from Spotify oEmbed for: " + url);
+    }
+    log.info("Spotify show name from oEmbed: {}", showName);
 
-        // If we have a feedUrl, fetch the full episode list from RSS
-        var episodes = new ArrayList<ResolvedEpisode>();
-        if (feedUrl != null && !feedUrl.isBlank()) {
-            try {
-                final var rssResolved = resolveRss(feedUrl);
-                episodes = new ArrayList<>(rssResolved.episodes());
-                if (description == null) {
-                    description = rssResolved.description();
-                }
-            } catch (Exception e) {
-                log.warn("Could not fetch episodes from RSS feed '{}': {}", feedUrl, e.getMessage());
-            }
-        }
+    final var searchUrl =
+        ITUNES_SEARCH_URL.formatted(URLEncoder.encode(showName, StandardCharsets.UTF_8));
+    log.debug("Searching iTunes for: {}", searchUrl);
 
-        return new ResolvedPodcast(
-                title,
-                author,
-                description,
-                artwork,
-                feedUrl,
-                sourceUrl,
-                SourceType.PODCAST,
-                episodes
-        );
+    @SuppressWarnings("unchecked")
+    final var searchResponse =
+        (java.util.Map<String, Object>)
+            restClient.get().uri(searchUrl).retrieve().body(java.util.Map.class);
+
+    return parseiTunesResponse(searchResponse, url);
+  }
+
+  /**
+   * Resolves a generic RSS feed URL by fetching the XML and parsing it with the standard Java DOM
+   * parser (no extra dependency required).
+   */
+  private ResolvedPodcast resolveRss(final String feedUrl) {
+    log.debug("Resolving RSS feed: {}", feedUrl);
+
+    final var xmlBytes = restClient.get().uri(feedUrl).retrieve().body(byte[].class);
+
+    if (xmlBytes == null || xmlBytes.length == 0) {
+      throw new IllegalStateException("Empty response fetching RSS feed: " + feedUrl);
     }
 
-    private ResolvedEpisode parseRssItem(final Element item) {
-        final var title       = firstElementText(item, "title");
-        var description = firstElementText(item, "description");
+    try {
+      final var factory = DocumentBuilderFactory.newInstance();
+      factory.setNamespaceAware(true);
+      final var builder = factory.newDocumentBuilder();
+      final var doc = builder.parse(new ByteArrayInputStream(xmlBytes));
+      doc.getDocumentElement().normalize();
+
+      final var channel = (Element) doc.getElementsByTagName("channel").item(0);
+      if (channel == null) {
+        throw new IllegalStateException("No <channel> element found in RSS feed: " + feedUrl);
+      }
+
+      final var title = firstElementText(channel, "title");
+      final var description = firstElementText(channel, "description");
+      final var author = firstElementText(channel, "itunes:author");
+      final var artworkUrl = extractRssArtwork(channel);
+
+      final var episodes = new ArrayList<ResolvedEpisode>();
+      final var items = channel.getElementsByTagName("item");
+      for (int i = 0; i < items.getLength(); i++) {
+        final var item = (Element) items.item(i);
+        episodes.add(parseRssItem(item));
+      }
+
+      log.info("Parsed RSS feed '{}': {} episode(s)", title, episodes.size());
+
+      return new ResolvedPodcast(
+          title, author, description, artworkUrl, feedUrl, feedUrl, SourceType.PODCAST, episodes);
+
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to parse RSS feed: " + feedUrl, e);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+
+  private String extractYoutubeId(final String url) {
+    final var watchMatcher = YOUTUBE_WATCH.matcher(url);
+    if (watchMatcher.find()) {
+      return watchMatcher.group(1);
+    }
+    final var shortMatcher = YOUTUBE_SHORT.matcher(url);
+    if (shortMatcher.find()) {
+      return shortMatcher.group(1);
+    }
+    final var playlistMatcher = YOUTUBE_PLAYLIST.matcher(url);
+    if (playlistMatcher.find()) {
+      return playlistMatcher.group(1);
+    }
+    throw new IllegalArgumentException("Could not extract YouTube ID from URL: " + url);
+  }
+
+  @SuppressWarnings("unchecked")
+  private ResolvedPodcast parseiTunesResponse(
+      final java.util.Map<String, Object> response, final String sourceUrl) {
+    if (response == null) {
+      throw new IllegalStateException("Null response from iTunes API for URL: " + sourceUrl);
+    }
+
+    final var results = (List<java.util.Map<String, Object>>) response.get("results");
+
+    if (results == null || results.isEmpty()) {
+      throw new IllegalStateException("No results from iTunes API for URL: " + sourceUrl);
+    }
+
+    final var result = results.get(0);
+
+    final var title = (String) result.get("collectionName");
+    final var author = (String) result.get("artistName");
+    final var artwork = (String) result.getOrDefault("artworkUrl600", result.get("artworkUrl100"));
+    final var feedUrl = (String) result.get("feedUrl");
+    var description = (String) null; // iTunes Lookup does not return a description field
+
+    log.info("iTunes resolved podcast: '{}' by '{}', feedUrl={}", title, author, feedUrl);
+
+    // If we have a feedUrl, fetch the full episode list from RSS
+    var episodes = new ArrayList<ResolvedEpisode>();
+    if (feedUrl != null && !feedUrl.isBlank()) {
+      try {
+        final var rssResolved = resolveRss(feedUrl);
+        episodes = new ArrayList<>(rssResolved.episodes());
         if (description == null) {
-            description = firstElementText(item, "itunes:summary");
+          description = rssResolved.description();
         }
-        final var audioUrl    = extractEnclosureUrl(item);
-        final var guid        = firstElementText(item, "guid");
-        final var pubDateStr  = firstElementText(item, "pubDate");
-        final var durationStr = firstElementText(item, "itunes:duration");
-
-        final var publishedAt = parseRfc822Date(pubDateStr);
-        final var durationSeconds = parseDurationSeconds(durationStr);
-
-        return new ResolvedEpisode(title, description, audioUrl, publishedAt, durationSeconds, guid);
+      } catch (Exception e) {
+        log.warn("Could not fetch episodes from RSS feed '{}': {}", feedUrl, e.getMessage());
+      }
     }
 
-    private String extractEnclosureUrl(final Element item) {
-        final var enclosures = item.getElementsByTagName("enclosure");
-        if (enclosures.getLength() > 0) {
-            final var enc = (Element) enclosures.item(0);
-            final var url = enc.getAttribute("url");
-            if (url != null && !url.isBlank()) {
-                return url;
-            }
-        }
-        return null;
-    }
+    return new ResolvedPodcast(
+        title, author, description, artwork, feedUrl, sourceUrl, SourceType.PODCAST, episodes);
+  }
 
-    private String extractRssArtwork(final Element channel) {
-        // Prefer <itunes:image href="...">
-        final var itunesImages = channel.getElementsByTagNameNS("*", "image");
-        for (int i = 0; i < itunesImages.getLength(); i++) {
-            final var img = (Element) itunesImages.item(i);
-            final var href = img.getAttribute("href");
-            if (href != null && !href.isBlank()) {
-                return href;
-            }
-        }
-        // Fall back to <image><url>...</url></image>
-        final var imageNodes = channel.getElementsByTagName("image");
-        if (imageNodes.getLength() > 0) {
-            final var imageEl = (Element) imageNodes.item(0);
-            return firstElementText(imageEl, "url");
-        }
-        return null;
+  private ResolvedEpisode parseRssItem(final Element item) {
+    final var title = firstElementText(item, "title");
+    var description = firstElementText(item, "description");
+    if (description == null) {
+      description = firstElementText(item, "itunes:summary");
     }
+    final var audioUrl = extractEnclosureUrl(item);
+    final var guid = firstElementText(item, "guid");
+    final var pubDateStr = firstElementText(item, "pubDate");
+    final var durationStr = firstElementText(item, "itunes:duration");
 
-    private String firstElementText(final Element parent, final String tagName) {
-        final var nodes = parent.getElementsByTagName(tagName);
-        if (nodes.getLength() > 0) {
-            final var text = nodes.item(0).getTextContent();
-            return (text != null && !text.isBlank()) ? text.strip() : null;
-        }
-        return null;
-    }
+    final var publishedAt = parseRfc822Date(pubDateStr);
+    final var durationSeconds = parseDurationSeconds(durationStr);
 
-    /**
-     * Parses an RFC-822 date string (standard in RSS) to an {@link Instant}.
-     * Returns {@code null} if the string is blank or unparseable.
-     */
-    private Instant parseRfc822Date(final String pubDateStr) {
-        if (pubDateStr == null || pubDateStr.isBlank()) {
-            return null;
-        }
-        try {
-            return DateTimeFormatter.RFC_1123_DATE_TIME
-                    .parse(pubDateStr, java.time.ZonedDateTime::from)
-                    .toInstant();
-        } catch (DateTimeParseException e) {
-            log.debug("Could not parse pubDate '{}': {}", pubDateStr, e.getMessage());
-            return null;
-        }
-    }
+    return new ResolvedEpisode(title, description, audioUrl, publishedAt, durationSeconds, guid);
+  }
 
-    /**
-     * Parses an itunes:duration value into total seconds.
-     * Accepts formats: {@code HH:MM:SS}, {@code MM:SS}, or a plain integer (seconds).
-     * Returns {@code null} if the string is blank or unparseable.
-     */
-    private Integer parseDurationSeconds(final String durationStr) {
-        if (durationStr == null || durationStr.isBlank()) {
-            return null;
-        }
-        try {
-            final var parts = durationStr.strip().split(":");
-            if (parts.length == 1) {
-                return Integer.parseInt(parts[0]);
-            } else if (parts.length == 2) {
-                return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
-            } else if (parts.length == 3) {
-                return Integer.parseInt(parts[0]) * 3600
-                        + Integer.parseInt(parts[1]) * 60
-                        + Integer.parseInt(parts[2]);
-            }
-        } catch (NumberFormatException e) {
-            log.debug("Could not parse duration '{}': {}", durationStr, e.getMessage());
-        }
-        return null;
+  private String extractEnclosureUrl(final Element item) {
+    final var enclosures = item.getElementsByTagName("enclosure");
+    if (enclosures.getLength() > 0) {
+      final var enc = (Element) enclosures.item(0);
+      final var url = enc.getAttribute("url");
+      if (url != null && !url.isBlank()) {
+        return url;
+      }
     }
+    return null;
+  }
+
+  private String extractRssArtwork(final Element channel) {
+    // Prefer <itunes:image href="...">
+    final var itunesImages = channel.getElementsByTagNameNS("*", "image");
+    for (int i = 0; i < itunesImages.getLength(); i++) {
+      final var img = (Element) itunesImages.item(i);
+      final var href = img.getAttribute("href");
+      if (href != null && !href.isBlank()) {
+        return href;
+      }
+    }
+    // Fall back to <image><url>...</url></image>
+    final var imageNodes = channel.getElementsByTagName("image");
+    if (imageNodes.getLength() > 0) {
+      final var imageEl = (Element) imageNodes.item(0);
+      return firstElementText(imageEl, "url");
+    }
+    return null;
+  }
+
+  private String firstElementText(final Element parent, final String tagName) {
+    final var nodes = parent.getElementsByTagName(tagName);
+    if (nodes.getLength() > 0) {
+      final var text = nodes.item(0).getTextContent();
+      return (text != null && !text.isBlank()) ? text.strip() : null;
+    }
+    return null;
+  }
+
+  /**
+   * Parses an RFC-822 date string (standard in RSS) to an {@link Instant}. Returns {@code null} if
+   * the string is blank or unparseable.
+   */
+  private Instant parseRfc822Date(final String pubDateStr) {
+    if (pubDateStr == null || pubDateStr.isBlank()) {
+      return null;
+    }
+    try {
+      return DateTimeFormatter.RFC_1123_DATE_TIME
+          .parse(pubDateStr, java.time.ZonedDateTime::from)
+          .toInstant();
+    } catch (DateTimeParseException e) {
+      log.debug("Could not parse pubDate '{}': {}", pubDateStr, e.getMessage());
+      return null;
+    }
+  }
+
+  /**
+   * Parses an itunes:duration value into total seconds. Accepts formats: {@code HH:MM:SS}, {@code
+   * MM:SS}, or a plain integer (seconds). Returns {@code null} if the string is blank or
+   * unparseable.
+   */
+  private Integer parseDurationSeconds(final String durationStr) {
+    if (durationStr == null || durationStr.isBlank()) {
+      return null;
+    }
+    try {
+      final var parts = durationStr.strip().split(":");
+      if (parts.length == 1) {
+        return Integer.parseInt(parts[0]);
+      } else if (parts.length == 2) {
+        return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
+      } else if (parts.length == 3) {
+        return Integer.parseInt(parts[0]) * 3600
+            + Integer.parseInt(parts[1]) * 60
+            + Integer.parseInt(parts[2]);
+      }
+    } catch (NumberFormatException e) {
+      log.debug("Could not parse duration '{}': {}", durationStr, e.getMessage());
+    }
+    return null;
+  }
 }

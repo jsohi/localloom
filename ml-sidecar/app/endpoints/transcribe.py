@@ -2,8 +2,7 @@ import logging
 import os
 import tempfile
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi import Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
 from app.services.whisper_service import TranscriptionResult, whisper_service
 
@@ -15,7 +14,9 @@ router = APIRouter()
 @router.post("/transcribe", response_model=TranscriptionResult)
 async def transcribe(
     audio_file: UploadFile = File(...),
-    model: str | None = Query(default=None, description="Whisper model name to use (overrides default from config)"),
+    model: str | None = Query(
+        default=None, description="Whisper model name to use (overrides default from config)"
+    ),
 ) -> TranscriptionResult:
     """Transcribe an uploaded audio file using Whisper.
 
@@ -70,9 +71,7 @@ async def transcribe(
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception(
-            "Transcription failed for upload '%s': %s", original_name, exc
-        )
+        logger.exception("Transcription failed for upload '%s': %s", original_name, exc)
         raise HTTPException(
             status_code=500,
             detail="Transcription failed. Check server logs for details.",
