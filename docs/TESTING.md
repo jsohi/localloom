@@ -1,10 +1,12 @@
-# LocalLoom — Integration Testing Plan
+# LocalLoom — Testing Plan
 
 ## 1. Overview
 
-This document defines the integration testing strategy for LocalLoom. Integration tests verify that components work together correctly — API to database, API to sidecar, API to Ollama, and full end-to-end user flows.
+This document defines the full testing strategy for LocalLoom — unit tests, integration tests, and end-to-end tests across both the Java API and Python ML sidecar.
 
-All integration tests use **sample data** shipped in the repository under `api/src/test/resources/fixtures/` and `ml-sidecar/tests/fixtures/`. No external network calls are required to run the test suite.
+All tests run in CI without Ollama, ffmpeg, or yt-dlp:
+- **Java API**: Testcontainers (PostgreSQL, ChromaDB), WireMock (ML sidecar), ONNX embeddings (`spring-ai-transformers`)
+- **Python sidecar**: pytest + httpx with mocked `WhisperModel` (no model download needed)
 
 > **Diagrams**: See [DIAGRAMS.md](./DIAGRAMS.md) for architecture context. See [DESIGN.md](./DESIGN.md) for data model and API details.
 
@@ -14,11 +16,11 @@ All integration tests use **sample data** shipped in the repository under `api/s
 
 | Layer | Scope | Tools | Runs Against |
 |-------|-------|-------|-------------|
-| **Unit** | Single class/function | JUnit 5, pytest | Mocks only |
-| **Integration** | Multi-component flows | Spring Boot Test, Testcontainers, pytest | Real DB, real ChromaDB |
-| **End-to-End** | Full stack user scenarios | Spring Boot Test + WireMock + Testcontainers | All services running |
+| **Unit** | Single class/function, pure logic | JUnit 5 + Mockito, pytest + mock | Mocks only, no containers |
+| **Integration** | Multi-component flows | Spring Boot Test, Testcontainers, WireMock, ONNX, pytest + httpx | Real PostgreSQL, real ChromaDB, mocked sidecar |
+| **End-to-End** | Full ingest pipeline scenarios | Spring Boot Test + Testcontainers + WireMock | All layers: API → DB → vector store → mocked external services |
 
-This document focuses on **Integration** and **End-to-End** tests.
+This document covers all three layers across the API and ML sidecar.
 
 ---
 
@@ -92,9 +94,60 @@ Seed scripts populate a known database state for tests that start mid-pipeline (
 
 ---
 
-## 4. Integration Test Scenarios
+## 4. Unit Tests (No Containers)
 
-### 4.1 API Server — Database (Spring Boot + PostgreSQL)
+Fast tests with mocks only — no Docker, no network.
+
+### 4.0a Java — UrlResolver
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Detect YouTube URL | `youtube.com/watch?v=xxx`, `youtu.be/xxx` → `YOUTUBE` | URL type detection |
+| 2 | Detect Apple Podcasts URL | `podcasts.apple.com/...` → `APPLE_PODCASTS` | URL type detection |
+| 3 | Detect Spotify URL | `open.spotify.com/show/...` → `SPOTIFY` | URL type detection |
+| 4 | Detect RSS URL | `https://example.com/feed.xml` → `RSS` | Fallback detection |
+| 5 | Resolve RSS feed | Mock RestClient → RSS XML → parse episodes | RSS parsing logic |
+| 6 | Resolve Apple Podcasts | Mock iTunes Lookup API response → extract feed URL | iTunes API parsing |
+| 7 | Resolve Spotify | Mock oEmbed API → podcast name → mock iTunes search → feed URL | Spotify→iTunes chain |
+
+### 4.0b Java — AudioService
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Derive extension from URL | `.mp3`, `.wav`, `.m4a`, URL with query params, no extension → `.mp3` | `deriveExtension()` |
+| 2 | Constants | MAX_RETRIES = 3, RETRY_DELAY_MS = 2000, PROCESS_TIMEOUT = 30 min | Config sanity |
+
+### 4.0c Java — EmbeddingService Filter Logic
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Single sourceId filter | One UUID → `eq("source_id", ...)` | Simple filter |
+| 2 | Multiple sourceId filter | Two UUIDs → `or(eq, eq)` wrapped in `group()` | OR chain |
+| 3 | Combined sourceId + sourceType | Both filters → `and(group(sourceIdOp), group(sourceTypeOp))` | AND combination |
+| 4 | Null/empty inputs | null list, empty list → returns null (no filter) | Edge cases |
+| 5 | Single sourceType | One type → `eq("source_type", ...)` | Enum-to-string mapping |
+
+### 4.0d Python — WhisperService
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Lazy model loading | First call loads WhisperModel, second reuses cached | `_models` dict cache |
+| 2 | Model override | `transcribe(path, model="base")` loads `base` not default | Model name routing |
+| 3 | Default model from config | No model param → uses `settings.whisper_model` | Config integration |
+| 4 | Transcription result parsing | Mock `WhisperModel.transcribe()` → verify `TranscriptionResult` segments | Pydantic model |
+
+### 4.0e Python — Config
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Default settings | `Settings()` has expected defaults (port 8100, model large-v3-turbo) | Defaults |
+| 2 | Env override | Set `LOCALLOOM_WHISPER_MODEL=base` → settings picks it up | Env prefix |
+
+---
+
+## 5. Integration Test Scenarios
+
+### 5.1 API Server — Database (Spring Boot + PostgreSQL)
 
 **Infrastructure**: Testcontainers (PostgreSQL)
 
@@ -108,7 +161,7 @@ Seed scripts populate a known database state for tests that start mid-pipeline (
 | 6 | Job progress tracking | Create job with entity_type (SOURCE/CONTENT_UNIT), update progress, mark complete/error | Job lifecycle |
 | 7 | Cascade delete | Delete Source, verify ContentUnits and fragments are removed | FK cascade rules |
 
-### 4.2 API Server — ChromaDB (Spring AI + Vector Store)
+### 5.2 API Server — ChromaDB (Spring AI + Vector Store)
 
 **Infrastructure**: Testcontainers (ChromaDB)
 
@@ -120,7 +173,7 @@ Seed scripts populate a known database state for tests that start mid-pipeline (
 | 4 | Delete source vectors | Delete all vectors for a source, verify empty | Cleanup logic |
 | 5 | Chunk indexing with TokenTextSplitter | Split long text, embed, verify chunk count and overlap | Chunking config |
 
-### 4.3 API Server — ML Sidecar (Spring Boot + Python)
+### 5.3 API Server — ML Sidecar (Spring Boot + Python)
 
 **Infrastructure**: WireMock (mock sidecar responses)
 
@@ -132,39 +185,60 @@ Seed scripts populate a known database state for tests that start mid-pipeline (
 | 4 | Sidecar unavailable | Sidecar down, verify graceful degradation | Error handling |
 | 5 | Transcription timeout | Slow response, verify timeout and retry | Resilience |
 
-### 4.4 API Server — Ollama (Spring AI + OllamaChatModel)
+### 5.4 API Server — Embeddings (Spring AI + ONNX TransformersEmbeddingModel)
 
-**Infrastructure**: WireMock (mock Ollama API)
-
-| # | Test | Description | Verifies |
-|---|------|-------------|----------|
-| 1 | Streaming chat response | POST `/api/chat`, verify SSE token stream | ChatClient streaming |
-| 2 | Model listing | GET `/api/tags`, verify model list parsing | Model management |
-| 3 | Ollama unavailable | Connection refused, verify error response | Error handling |
-| 4 | Embedding request | Embed text via OllamaEmbeddingModel, verify vector dimensions | Embedding integration |
-
-### 4.5 ML Sidecar — Whisper (Python Integration)
-
-**Infrastructure**: Real Whisper model (requires model download, CI-gated)
+**Infrastructure**: `spring-ai-transformers` (ONNX `all-MiniLM-L6-v2`), Testcontainers (ChromaDB)
 
 | # | Test | Description | Verifies |
 |---|------|-------------|----------|
-| 1 | Transcribe 10s clip | POST `short-clip-10s.wav`, verify segments returned | Whisper pipeline |
+| 1 | Embed and search | Embed sample text via ONNX, similarity search returns relevant results | Real embedding pipeline |
+| 2 | Metadata filtering | Store chunks with source_type, filter on search | FilterExpressionBuilder |
+| 3 | Delete by source | Delete all vectors for a source, verify empty | Cleanup logic |
+| 4 | Chunk indexing | Split long text via TokenTextSplitter, verify chunk count and metadata | Chunking config |
+
+> **Note**: Ollama ChatModel tests (RAG, streaming) will be added in Phase 2 when RAG service is implemented. ChatModel will be mocked via WireMock in CI.
+
+### 5.5 ML Sidecar — API Tests (Python, no ML models)
+
+**Infrastructure**: pytest + httpx `AsyncClient` with FastAPI `TestClient` (no Docker, no models)
+
+These tests mock `whisper_service` to avoid downloading/loading Whisper models in CI.
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Health endpoint | GET `/health` → `{"status": "ok"}` | Router wiring |
+| 2 | Transcribe success | POST `/transcribe` with WAV, mock whisper_service → segments | Endpoint parsing, temp file lifecycle |
+| 3 | Transcribe empty file | POST `/transcribe` with 0 bytes → 422 | Input validation |
+| 4 | Transcribe bad content-type | POST `/transcribe` with `text/plain` → 422 | Content-type guard |
+| 5 | Transcribe service error | POST `/transcribe`, mock raises exception → 500 | Error handling |
+| 6 | TTS not implemented | POST `/tts` → 501 | Stub returns correct status |
+| 7 | Config defaults | Verify `Settings()` defaults match expected values | Pydantic settings |
+| 8 | Config env override | Set `LOCALLOOM_WHISPER_MODEL=base`, verify settings pick it up | Env prefix |
+
+### 5.6 ML Sidecar — Whisper Integration (Python, gated)
+
+**Infrastructure**: Real Whisper model (requires model download, CI-gated via `@pytest.mark.ml`)
+
+| # | Test | Description | Verifies |
+|---|------|-------------|----------|
+| 1 | Transcribe 10s clip | POST `short-clip-10s.wav`, verify segments returned with timestamps | Whisper pipeline end-to-end |
 | 2 | Transcribe silence | POST `silence-5s.wav`, verify empty/minimal segments | Edge case |
-| 3 | Invalid audio format | POST non-audio file, verify 422 error | Input validation |
-| 4 | Model lazy loading | First request loads model, second is faster | Lazy init |
+| 3 | Model lazy loading | First transcription loads model, second reuses cached instance | Lazy init singleton |
+| 4 | Model override | POST with `model=base`, verify different model used | Request param routing |
 
-### 4.6 ML Sidecar — Piper TTS (Python Integration)
+### 5.7 ML Sidecar — Piper TTS Integration (Future, requires APP-91)
 
-**Infrastructure**: Real Piper model (requires model download, CI-gated)
+**Infrastructure**: Real Piper model (requires model download, CI-gated via `@pytest.mark.ml`)
+
+TTS endpoint is currently a 501 stub. Tests will be added when Piper integration is implemented.
 
 | # | Test | Description | Verifies |
 |---|------|-------------|----------|
 | 1 | Generate speech | POST short text, verify WAV response | TTS pipeline |
-| 2 | Long text handling | POST 500-word text, verify sentence splitting + concatenation | Long input |
+| 2 | Long text handling | POST 500-word text, verify output | Sentence splitting |
 | 3 | Empty text | POST empty string, verify 422 error | Input validation |
 
-### 4.7 Source Connector — Podcast
+### 5.8 Source Connector — Podcast
 
 **Infrastructure**: WireMock (mock RSS feeds + audio URLs), Testcontainers (PostgreSQL, ChromaDB)
 
@@ -176,7 +250,7 @@ Seed scripts populate a known database state for tests that start mid-pipeline (
 | 4 | Fetch audio | Download audio from WireMock URL, verify WAV conversion | Audio download |
 | 5 | Full podcast pipeline | RSS → discover → fetch → transcribe → embed | End-to-end connector |
 
-### 4.8 Source Connector — File Upload
+### 5.9 Source Connector — File Upload
 
 **Infrastructure**: Testcontainers (PostgreSQL, ChromaDB)
 
@@ -189,121 +263,148 @@ Seed scripts populate a known database state for tests that start mid-pipeline (
 
 ---
 
-## 5. End-to-End Test Scenarios
+## 6. End-to-End Test Scenarios
 
-These tests exercise the full stack from API request to database + vector store, using real (containerized) dependencies.
+These tests exercise the full stack from API request through to database + vector store, using real (containerized) dependencies.
 
-**Infrastructure**: Testcontainers (PostgreSQL, ChromaDB), WireMock (Ollama, sidecar, external feeds)
+**Infrastructure**: Testcontainers (PostgreSQL, ChromaDB), WireMock (sidecar, external feeds), ONNX embeddings
+
+### 6.1 Phase 1 — Ingest Pipeline E2E (PR #13, APP-109)
+
+These are testable now — all required services are implemented.
 
 | # | Scenario | Flow | Key Assertions |
 |---|----------|------|-----------------|
-| E2E-1 | **Podcast import → query** | Add podcast URL → discover episodes → fetch audio → transcribe → embed → ask question → get answer with citations | Answer contains citation with episode title and timestamp |
-| E2E-2 | **File upload → query** | Upload markdown file → extract → embed → ask question → get answer | Answer cites uploaded file with section |
-| E2E-3 | **Multi-source query** | Import podcast + upload file → query across both → verify citations from both source types | Citations include both PODCAST and FILE_UPLOAD types |
-| E2E-4 | **Conversation continuity** | Ask question → get answer → ask follow-up in same conversation → verify context maintained | Second answer references conversation history |
-| E2E-5 | **Source deletion cleanup** | Import podcast → embed → delete source → verify DB + ChromaDB cleaned up | No orphaned records or vectors |
-| E2E-6 | **Job progress tracking** | Start podcast import → poll job status → verify progress updates 0.0 → 1.0 | Progress monotonically increases |
-| E2E-7 | **Error recovery** | Start import → sidecar fails mid-transcription → verify job marked ERROR → retry succeeds | Retry creates new job, reaches INDEXED |
+| E2E-1 | **Podcast import pipeline** | `POST /api/v1/sources` → UrlResolver (mocked) → AudioService (mocked) → WireMock `/transcribe` → EmbeddingService → ChromaDB | Source SYNCING → IDLE, ContentUnits INDEXED, fragments saved, vectors searchable in ChromaDB, Job COMPLETE with progress 1.0 |
+| E2E-2 | **Source deletion cleanup** | Import podcast → embed → `DELETE /api/v1/sources/{id}` → verify DB + ChromaDB + audio files cleaned up | No orphaned records, vectors, or files |
+| E2E-3 | **Job progress tracking** | `POST /api/v1/sources` → poll `GET /api/v1/jobs/{id}` → verify progress 0.0 → 1.0 | Progress monotonically increases, final status COMPLETE |
+| E2E-4 | **Partial failure** | Import 2 episodes, WireMock fails transcription for episode 2 → verify episode 1 INDEXED, episode 2 ERROR, Job FAILED with error summary | Partial success preserved, error isolated |
+| E2E-5 | **Re-sync** | Import → complete → `POST /api/v1/sources/{id}/sync` → verify new Job created, source re-imported | Second import idempotent |
+| E2E-6 | **Error recovery** | Import → sidecar completely down → Job FAILED → sidecar recovers → re-sync succeeds | New Job reaches COMPLETE |
+
+### 6.2 Phase 2 — RAG E2E (Future, requires APP-83)
+
+Blocked on RAG service + conversation/chat controller implementation.
+
+| # | Scenario | Flow | Key Assertions |
+|---|----------|------|-----------------|
+| E2E-7 | **Podcast import → RAG query** | Import podcast → embed → ask question via chat API → answer with citations | Answer contains citation with episode title and timestamp |
+| E2E-8 | **File upload → query** | Upload markdown → extract → embed → ask question → answer cites file | Answer references uploaded file |
+| E2E-9 | **Multi-source query** | Import podcast + upload file → query across both | Citations from both PODCAST and FILE_UPLOAD types |
+| E2E-10 | **Conversation continuity** | Ask question → follow-up in same conversation → context maintained | Second answer references history |
+
+### 6.3 Phase 4+ — Advanced E2E (Future)
+
+| # | Scenario | Flow | Key Assertions |
+|---|----------|------|-----------------|
+| E2E-11 | **TTS pipeline** | Query → answer → synthesize speech via sidecar `/tts` | WAV audio returned |
+| E2E-12 | **Batch import** | Import 10 sources concurrently, verify all complete | No deadlocks, all Jobs finish |
 
 ---
 
-## 6. Test Infrastructure
+## 7. Test Infrastructure
 
-### 6.1 Java (Spring Boot Test)
+### 7.1 Java Test Dependencies
 
 ```kotlin
-// build.gradle.kts
+// build.gradle.kts — already declared
 testImplementation("org.springframework.boot:spring-boot-starter-test")
 testImplementation("org.springframework.boot:spring-boot-testcontainers")
-testImplementation("org.testcontainers:postgresql")
-testImplementation("org.testcontainers:chromadb")
-testImplementation("org.wiremock:wiremock-standalone:3.x")
+testImplementation("org.testcontainers:testcontainers-postgresql")
+testImplementation("org.testcontainers:testcontainers-chromadb")
+testImplementation("org.wiremock:wiremock-standalone:3.13.2")
+testImplementation("org.springframework.ai:spring-ai-test")
+testImplementation("org.springframework.ai:spring-ai-spring-boot-testcontainers")
+testImplementation("org.springframework.ai:spring-ai-starter-model-transformers")  // ONNX local embeddings
+testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 ```
 
-Base test class:
+All Spring AI deps managed by `spring-ai-bom:2.0.0-M4`. Testcontainers managed by `testcontainers-bom:2.0.4`.
+
+### 7.2 Embedding Strategy — ONNX (No Ollama)
+
+Industry standard for Spring AI testing: use `spring-ai-starter-model-transformers` with the `all-MiniLM-L6-v2` ONNX model. This produces **real embeddings** on CPU — similarity search actually works in tests without Ollama.
+
+The `spring-ai-starter-model-transformers` dependency auto-configures `TransformersEmbeddingModel` — no manual bean definition needed. Tests that don't use real embeddings (e.g., controller tests) mock `EmbeddingModel` via `@MockitoBean` instead.
+
+### 7.3 Shared Test Configuration
 
 ```java
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@Testcontainers
-abstract class IntegrationTestBase {
+@TestConfiguration(proxyBeanMethods = false)
+class TestcontainersConfig {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
+    @Bean
+    @ServiceConnection
+    PostgreSQLContainer<?> postgres() {
+        return new PostgreSQLContainer<>("postgres:16-alpine");
+    }
 
-    @Container
-    static ChromaDBContainer chromadb = new ChromaDBContainer("chromadb/chroma:latest");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.ai.vectorstore.chroma.url",
-            () -> "http://" + chromadb.getHost() + ":" + chromadb.getMappedPort(8000));
+    @Bean
+    @ServiceConnection
+    ChromaDBContainer chromadb() {
+        return new ChromaDBContainer("chromadb/chroma:1.0.12");
     }
 }
 ```
 
-### 6.2 Python (pytest)
+### 7.4 Mocking Strategy
+
+| Dependency | Strategy | Rationale |
+|------------|----------|-----------|
+| PostgreSQL | Testcontainers `@ServiceConnection` | Real DB, Flyway migrations, JPA |
+| ChromaDB | Testcontainers `@ServiceConnection` | Real vector store operations |
+| EmbeddingModel | `TransformersEmbeddingModel` (ONNX) | Real embeddings, no Ollama |
+| Ollama ChatModel | `@MockBean` | Not needed for ingest pipeline |
+| ML Sidecar | WireMock | Mock `/transcribe`, `/tts`, `/health` |
+| AudioService | `@MockBean` | ffmpeg/yt-dlp not available in CI |
+| UrlResolver | `@MockBean` | Control test data, no external HTTP |
+
+### 7.5 Python (pytest)
 
 ```toml
 # pyproject.toml [project.optional-dependencies]
 test = ["pytest", "pytest-asyncio", "httpx"]
 ```
 
-### 6.3 WireMock Stubs
-
-WireMock stubs are stored alongside fixtures:
-
-```
-api/src/test/resources/wiremock/
-├── ollama/
-│   ├── chat-streaming.json       # Streaming chat response
-│   └── tags.json                 # Model list
-├── sidecar/
-│   ├── transcribe-success.json   # Whisper response
-│   ├── tts-success.json          # TTS response
-│   └── health.json               # Health check
-└── feeds/
-    └── audio-download.json       # Serves short-clip-10s.wav
-```
-
 ---
 
-## 7. CI/CD Considerations
+## 8. CI/CD Considerations
 
 | Concern | Approach |
 |---------|----------|
-| **Speed** | Integration tests use Testcontainers with reusable containers where possible |
-| **ML model tests** | Whisper/Piper tests are gated behind a `@Tag("ml")` / `@pytest.mark.ml` marker — skipped in fast CI, run in nightly |
-| **Ollama tests** | All Ollama interactions are mocked via WireMock in CI; optional `@Tag("ollama")` tests hit real Ollama locally |
-| **Sample audio size** | 10-second clip (~160 KB) is small enough for git; larger test audio is downloaded on demand |
-| **Parallelism** | Each test class gets its own Testcontainers instance to avoid cross-test pollution |
+| **Speed** | Testcontainers reused across tests in same JVM via `@ServiceConnection` |
+| **Ollama** | Not used — ONNX `TransformersEmbeddingModel` replaces Ollama in tests |
+| **ffmpeg/yt-dlp** | Not available in CI — `AudioService` mocked via `@MockBean` |
+| **ML model tests** | Python Whisper/Piper tests gated behind `@pytest.mark.ml` — skipped in fast CI |
+| **ONNX model cache** | `all-MiniLM-L6-v2` (~90 MB) downloaded on first test run, cached in `$TMPDIR/onnx-zoo` |
+| **Docker** | Required for Testcontainers; ubuntu-latest CI runners have Docker pre-installed |
 
 ### Test Commands
 
 ```bash
-# All integration tests (no ML models required)
+# All API integration tests (Docker required, no Ollama/ffmpeg/yt-dlp needed)
 cd api && ./gradlew test
 
-# Include ML model tests (requires Whisper + Piper downloaded)
-cd api && ./gradlew test -Dinclude.tags=ml
+# Python sidecar tests (no ML models)
+cd ml-sidecar && uv run pytest --ignore=tests/ml
 
-# Python sidecar tests
-cd ml-sidecar && uv run pytest
-
-# Python ML tests only (requires models)
+# Python ML tests only (requires Whisper model downloaded)
 cd ml-sidecar && uv run pytest -m ml
+
+# Full project (Makefile)
+make test
 ```
 
 ---
 
-## 8. Phase Mapping
+## 9. Phase Mapping
 
 Tests are implemented alongside the feature they verify:
 
-| Phase | Label | Integration Tests |
-|-------|-------|-------------------|
-| Phase 1 — Foundation | `phase-1-foundation` | DB CRUD (4.1), Sidecar client (4.3), Whisper (4.5), Podcast connector (4.7) |
-| Phase 2 — RAG | `phase-2-rag` | ChromaDB (4.2), Ollama (4.4), E2E query (E2E-1, E2E-2) |
-| Phase 3 — UI | `phase-3-ui` | Frontend API contract tests (not covered here — see frontend test plan) |
-| Phase 4 — TTS | `phase-4-tts` | Piper TTS (4.6), TTS orchestration (4.3 #2) |
-| Phase 5 — Polish | `phase-5-polish` | Multi-source (E2E-3), Error recovery (E2E-7), Batch import |
+| Phase | Label | Integration Tests | Linear |
+|-------|-------|-------------------|--------|
+| Phase 1 — Foundation | `phase-1-foundation` | Unit (4.0a–4.0e), DB CRUD (5.1), Embeddings/ChromaDB (5.4), Sidecar client (5.3), Sidecar API (5.5), Pipeline (5.8), E2E (6.1), Job lifecycle | APP-109 (PR #13) |
+| Phase 2 — RAG | `phase-2-rag` | Ollama chat via WireMock, RAG query E2E (6.2) | APP-83 + tests |
+| Phase 3 — UI | `phase-3-ui` | Frontend API contract tests | APP-75 + tests |
+| Phase 4 — TTS | `phase-4-tts` | Piper TTS (5.7), TTS orchestration (5.3 #2) | Future |
+| Phase 5 — Polish | `phase-5-polish` | Multi-source (E2E-9), Error recovery, Batch import (E2E-12) | Future |

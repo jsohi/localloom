@@ -32,11 +32,14 @@ public class AudioService {
 
   private final Path audioDir;
   private final RestClient restClient;
+  private final boolean skipDependencyCheck;
 
   public AudioService(
       @Value("${localloom.audio.dir:data/audio}") final String audioDir,
+      @Value("${localloom.audio.skip-dependency-check:false}") final boolean skipDependencyCheck,
       final RestClient.Builder restClientBuilder) {
     this.audioDir = Paths.get(audioDir);
+    this.skipDependencyCheck = skipDependencyCheck;
     this.restClient = restClientBuilder.build();
   }
 
@@ -48,7 +51,9 @@ public class AudioService {
   public void init() throws IOException {
     Files.createDirectories(audioDir);
     log.info("Audio directory initialised at {}", audioDir.toAbsolutePath());
-    validateDependencies();
+    if (!skipDependencyCheck) {
+      validateDependencies();
+    }
   }
 
   // -------------------------------------------------------------------------

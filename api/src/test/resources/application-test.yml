@@ -1,0 +1,28 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaApiAutoConfiguration
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  ai:
+    vectorstore:
+      chroma:
+        initialize-schema: true
+
+logging:
+  config: classpath:log4j2-spring.xml
+
+localloom:
+  sidecar:
+    url: http://localhost:${wiremock.server.port:9999}
+  audio:
+    dir: ${java.io.tmpdir}/localloom-test-audio
+    skip-dependency-check: true

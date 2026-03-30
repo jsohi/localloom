@@ -354,7 +354,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'test'" },
     { name = "pydantic-settings" },
     { name = "pytest", marker = "extra == 'test'" },
-    { name = "pytest-asyncio", marker = "extra == 'test'" },
+    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.23" },
     { name = "python-multipart" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "uvicorn", extras = ["standard"] },
