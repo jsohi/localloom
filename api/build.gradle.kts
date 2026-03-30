@@ -1,5 +1,3 @@
-import org.springframework.boot.gradle.tasks.bundling.BootJar
-
 plugins {
     java
     id("org.springframework.boot") version "4.0.4"
