@@ -14,7 +14,7 @@ Every commit pushed to a PR **must** go through this review cycle:
 ### How to trigger Gemini review
 
 ```bash
-gh api repos/jsohi/localloom/issues/<PR_NUMBER>/comments -f body="@gemini review"
+gh api repos/<OWNER>/<REPO>/issues/<PR_NUMBER>/comments -f body="@gemini review"
 ```
 
 ### Known reviewer quirks
