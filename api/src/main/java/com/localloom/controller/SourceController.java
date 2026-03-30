@@ -60,6 +60,7 @@ public class SourceController {
         this.sourceImportService = sourceImportService;
     }
 
+    @Transactional
     @PostMapping
     public ResponseEntity<Map<String, UUID>> createSource(@RequestBody final CreateSourceRequest request) {
         log.info("Creating source: type={} name='{}' url='{}'",

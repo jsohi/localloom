@@ -157,8 +157,10 @@ public class SourceImportService {
         final var rawText = transcription.segments().stream()
                 .map(MlSidecarClient.Segment::text)
                 .collect(Collectors.joining(" "));
-        unit.setRawText(rawText);
-        contentUnitRepository.save(unit);
+        tx.executeWithoutResult(s -> {
+            unit.setRawText(rawText);
+            contentUnitRepository.save(unit);
+        });
 
         setUnitStatus(unit, ContentUnitStatus.EMBEDDING);
         log.debug("Embedding contentUnitId={}", contentUnitId);
