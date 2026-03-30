@@ -441,7 +441,7 @@ graph LR
     end
 
     subgraph Inference
-        Ollama[Ollama + Llama 3.1]
+        Ollama[Ollama + Llama 4]
     end
 
     Presentation --> API_Layer

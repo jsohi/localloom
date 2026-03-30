@@ -406,7 +406,7 @@ User asks: "What did we decide about API authentication?"
 │                          │
 │  POST /api/chat          │
 │  stream: true            │
-│  model: llama3.1:8b      │
+│  model: llama4:scout     │
 │                          │
 │  Stream tokens via SSE   │
 │  to frontend             │
@@ -571,8 +571,8 @@ in the Java layer — no longer routed through the Python sidecar.
 
 | Model | Size | RAM | Use Case |
 |-------|------|-----|----------|
-| `llama3.1:8b-instruct-q5_K_M` | ~6 GB | 8 GB | Default LLM — good quality, fast on M1+ |
-| `llama3.1:70b-instruct-q4_K_M` | ~40 GB | 48 GB | Premium LLM — for M2/M3/M4 Max/Ultra |
+| `llama4:scout` | ~17 GB | 24 GB | Default LLM — Llama 4 Scout, good quality, fast on M1+ |
+| `llama4:maverick` | ~50 GB | 64 GB | Premium LLM — Llama 4 Maverick, for M2/M3/M4 Max/Ultra |
 | `large-v3-turbo` (Whisper) | ~3 GB | 4 GB | Default transcription — near-best quality, 2-3x faster |
 | `nomic-embed-text` | ~275 MB | 500 MB | Embeddings via Ollama — 768-dim, good quality |
 | `en_US-amy-medium` (Piper) | 60 MB | 100 MB | TTS — natural voice, fast |
