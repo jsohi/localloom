@@ -30,6 +30,8 @@ LocalLoom creates a unified personal knowledge base by:
 - Anyone who values data privacy and local-first tools
 
 > **Diagrams**: See [DIAGRAMS.md](./DIAGRAMS.md) for interactive Mermaid diagrams of architecture, data flows, ER model, and service communication.
+>
+> **Testing**: See [TESTING.md](./TESTING.md) for the integration testing plan, sample data definitions, and test scenarios.
 
 ---
 
