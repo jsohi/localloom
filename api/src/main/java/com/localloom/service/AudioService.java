@@ -2,6 +2,7 @@ package com.localloom.service;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -202,6 +203,26 @@ public class AudioService {
     }
 
     return outputPath;
+  }
+
+  /**
+   * Deletes all audio files associated with the given content unit IDs. Matches both the final WAV
+   * and any intermediate raw download files ({@code <id>.wav}, {@code <id>_raw.*}).
+   *
+   * @param contentUnitIds IDs of the content units whose audio files should be removed
+   */
+  public void deleteAudioFiles(final List<UUID> contentUnitIds) {
+    for (final var id : contentUnitIds) {
+      final var pattern = id.toString() + "*";
+      try (DirectoryStream<Path> stream = Files.newDirectoryStream(audioDir, pattern)) {
+        for (final var file : stream) {
+          deleteQuietly(file);
+          log.debug("Deleted audio file: {}", file);
+        }
+      } catch (IOException e) {
+        log.warn("Could not list audio files for contentUnitId={}: {}", id, e.getMessage());
+      }
+    }
   }
 
   /**

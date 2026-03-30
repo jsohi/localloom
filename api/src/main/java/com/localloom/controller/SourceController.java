@@ -7,6 +7,7 @@ import com.localloom.model.SourceType;
 import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentUnitRepository;
 import com.localloom.repository.SourceRepository;
+import com.localloom.service.AudioService;
 import com.localloom.service.EmbeddingService;
 import com.localloom.service.JobService;
 import com.localloom.service.SourceImportService;
@@ -18,6 +19,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,6 +43,7 @@ public class SourceController {
 
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
+  private final AudioService audioService;
   private final EmbeddingService embeddingService;
   private final JobService jobService;
   private final SourceImportService sourceImportService;
@@ -47,11 +51,13 @@ public class SourceController {
   public SourceController(
       final SourceRepository sourceRepository,
       final ContentUnitRepository contentUnitRepository,
+      final AudioService audioService,
       final EmbeddingService embeddingService,
       final JobService jobService,
       final SourceImportService sourceImportService) {
     this.sourceRepository = sourceRepository;
     this.contentUnitRepository = contentUnitRepository;
+    this.audioService = audioService;
     this.embeddingService = embeddingService;
     this.jobService = jobService;
     this.sourceImportService = sourceImportService;
@@ -78,11 +84,22 @@ public class SourceController {
     source = sourceRepository.save(source);
 
     final var job = jobService.createJob(JobType.SYNC, source.getId(), EntityType.SOURCE);
-    sourceImportService.importSource(source.getId(), job.getId());
 
-    log.info("Import triggered: sourceId={} jobId={}", source.getId(), job.getId());
+    // Defer async import until after the transaction commits, preventing the
+    // race where the background thread queries a Source that hasn't been flushed yet.
+    final var sourceId = source.getId();
+    final var jobId = job.getId();
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            sourceImportService.importSource(sourceId, jobId);
+          }
+        });
+
+    log.info("Import scheduled after commit: sourceId={} jobId={}", sourceId, jobId);
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(Map.of("source_id", source.getId(), "job_id", job.getId()));
+        .body(Map.of("source_id", sourceId, "job_id", jobId));
   }
 
   @PostMapping("/upload")
@@ -110,6 +127,7 @@ public class SourceController {
     return Map.of("source", source, "contentUnits", contentUnitRepository.findBySourceId(id));
   }
 
+  @Transactional
   @PostMapping("/{id}/sync")
   public ResponseEntity<Map<String, UUID>> syncSource(@PathVariable final UUID id) {
     final var source =
@@ -123,10 +141,17 @@ public class SourceController {
     sourceRepository.save(source);
 
     final var job = jobService.createJob(JobType.SYNC, source.getId(), EntityType.SOURCE);
-    sourceImportService.importSource(source.getId(), job.getId());
+    final var sourceId = source.getId();
+    final var jobId = job.getId();
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            sourceImportService.importSource(sourceId, jobId);
+          }
+        });
 
-    return ResponseEntity.accepted()
-        .body(Map.of("source_id", source.getId(), "job_id", job.getId()));
+    return ResponseEntity.accepted().body(Map.of("source_id", sourceId, "job_id", jobId));
   }
 
   @Transactional
@@ -136,8 +161,17 @@ public class SourceController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Source not found: " + id);
     }
     log.info("Deleting sourceId={}", id);
+
+    // Collect content unit IDs before cascade-deleting so we can clean up audio files on disk.
+    final var contentUnitIds =
+        contentUnitRepository.findBySourceId(id).stream().map(unit -> unit.getId()).toList();
+
     embeddingService.deleteBySource(id);
     sourceRepository.deleteById(id);
+
+    // Delete audio files after the DB records are removed — best-effort, non-transactional.
+    audioService.deleteAudioFiles(contentUnitIds);
+
     log.info("Source deleted: id={}", id);
     return ResponseEntity.noContent().build();
   }
