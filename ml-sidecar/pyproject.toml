@@ -17,9 +17,12 @@ test = [
     "pytest-asyncio",
     "httpx",
 ]
+dev = [
+    "ruff",
+]
 
-[project.scripts]
-dev = "uvicorn app.main:app --reload --port 8100"
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [build-system]
 requires = ["hatchling"]
