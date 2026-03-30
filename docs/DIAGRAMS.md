@@ -310,6 +310,7 @@ erDiagram
         uuid id PK
         enum type "FETCH | TRANSCRIBE | EXTRACT | EMBED | SYNC"
         uuid entity_id
+        enum entity_type "SOURCE | CONTENT_UNIT"
         enum status "PENDING | RUNNING | COMPLETED | FAILED"
         double progress
         string error_message

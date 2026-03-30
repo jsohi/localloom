@@ -136,7 +136,7 @@ The sidecar pattern allows independent scaling and deployment. The Python sideca
 │ origin_url        │     │ external_id           │     │ text (TEXT)          │
 │ icon_url          │     │ external_url          │     │ location (JSONB)     │
 │ config (JSONB)    │     │ status (ENUM)         │     └─────────────────────┘
-│ sync_status (ENUM)│     │ raw_text (TEXT)        │
+│ sync_status (ENUM)│     │ raw_text (TEXT)*       │
 │ last_synced_at    │     │ metadata (JSONB)       │     ┌─────────────────────┐
 │ created_at        │     │ published_at           │     │       Job            │
 └──────────────────┘     │ created_at             │     ├─────────────────────┤
@@ -188,7 +188,7 @@ Example `config` values per source type:
 - `external_id`: identifier from the external system (episode GUID, page ID, thread ID, file path)
 - `external_url`: link back to the original content in its source system
 - `status` lifecycle varies by content type (see Section 4)
-- `raw_text`: full extracted text for display
+- `raw_text`*: full extracted text for display. For large documents, consider lazy loading (JPA `@Basic(fetch = LAZY)`) or offloading to file storage and referencing by path to keep the entity lightweight in memory.
 - `metadata` (JSONB): type-specific data
 
 Example `metadata` values per content type:
@@ -234,6 +234,7 @@ Example `location` values per fragment type:
 
 **Job**
 - `type`: `FETCH`, `TRANSCRIBE`, `EXTRACT`, `EMBED`, `SYNC`
+- `entity_id` + `entity_type` (`SOURCE` | `CONTENT_UNIT`): polymorphic association identifying whether the job belongs to a Source or a ContentUnit
 - `progress`: 0.0 to 1.0, updated during processing
 - Frontend polls job status for progress display
 
