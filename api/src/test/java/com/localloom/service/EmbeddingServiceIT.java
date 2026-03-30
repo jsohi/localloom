@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -21,9 +20,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class EmbeddingServiceIT {
 
   @Autowired private EmbeddingService embeddingService;
-
-  @MockitoBean private AudioService audioService;
-  @MockitoBean private SourceImportService sourceImportService;
 
   @Test
   void embedAndSearch() {

@@ -13,18 +13,13 @@ import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentUnitRepository;
 import com.localloom.repository.JobRepository;
 import com.localloom.repository.SourceRepository;
-import com.localloom.service.AudioService;
-import com.localloom.service.EmbeddingService;
-import com.localloom.service.SourceImportService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -48,11 +43,6 @@ class SourceControllerIT {
     sourceRepository.deleteAllInBatch();
     mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
   }
-
-  @MockitoBean private AudioService audioService;
-  @MockitoBean private EmbeddingService embeddingService;
-  @MockitoBean private SourceImportService sourceImportService;
-  @MockitoBean private EmbeddingModel embeddingModel;
 
   @Test
   void createSourceReturnsCreated() throws Exception {

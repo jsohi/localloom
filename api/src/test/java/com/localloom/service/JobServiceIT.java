@@ -9,12 +9,10 @@ import com.localloom.model.JobStatus;
 import com.localloom.model.JobType;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @Import(TestcontainersConfig.class)
@@ -22,11 +20,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class JobServiceIT {
 
   @Autowired private JobService jobService;
-
-  // Mock beans not needed for this test but required by Spring context
-  @MockitoBean private AudioService audioService;
-  @MockitoBean private SourceImportService sourceImportService;
-  @MockitoBean private EmbeddingModel embeddingModel;
 
   @Test
   void createJobAndRetrieve() {

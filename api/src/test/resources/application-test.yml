@@ -21,6 +21,8 @@ logging:
   config: classpath:log4j2-spring.xml
 
 localloom:
+  chat:
+    system-prompt: "Test system prompt"
   sidecar:
     url: http://localhost:${wiremock.server.port:9999}
   audio:
