@@ -119,8 +119,7 @@ class OllamaIntegrationTest {
                     .withBody(ndjsonBody)));
 
     var tokens =
-        chatModel
-            .stream(new Prompt(List.of(new UserMessage("Hello"))))
+        chatModel.stream(new Prompt(List.of(new UserMessage("Hello"))))
             .collectList()
             .block(Duration.ofSeconds(10));
 
@@ -206,8 +205,6 @@ class OllamaIntegrationTest {
     for (var i = 0; i < dimensions; i++) {
       embedding[i] = Math.sin(i * seed);
     }
-    return Arrays.stream(embedding)
-        .mapToObj(String::valueOf)
-        .collect(Collectors.joining(","));
+    return Arrays.stream(embedding).mapToObj(String::valueOf).collect(Collectors.joining(","));
   }
 }
