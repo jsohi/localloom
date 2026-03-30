@@ -1,8 +1,8 @@
 plugins {
     java
-    id("org.springframework.boot") version "4.0.4"
+    id("org.springframework.boot") version "4.0.5"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.diffplug.spotless") version "7.0.4"
+    id("com.diffplug.spotless") version "8.4.0"
 }
 
 group = "com.localloom"
@@ -26,7 +26,8 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.ai:spring-ai-bom:1.0.0")
+        mavenBom("org.springframework.ai:spring-ai-bom:2.0.0-M4")
+        mavenBom("org.testcontainers:testcontainers-bom:2.0.4")
     }
 }
 
@@ -41,16 +42,20 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-vector-store-chroma")
 
     // Database
-    implementation("org.flywaydb:flyway-core")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:chromadb")
-    testImplementation("com.github.tomakehurst:wiremock-standalone:3.13.0")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-chromadb")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
+    testImplementation("org.springframework.ai:spring-ai-test")
+    testImplementation("org.springframework.ai:spring-ai-spring-boot-testcontainers")
+    testImplementation("org.springframework.ai:spring-ai-starter-model-transformers")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }
 
 tasks.withType<Test> {
@@ -61,7 +66,7 @@ spotless {
     java {
         importOrder("java", "jakarta", "org.springframework", "com.localloom", "")
         removeUnusedImports()
-        googleJavaFormat("1.28.0")
+        googleJavaFormat("1.35.0")
         trimTrailingWhitespace()
         endWithNewline()
     }
