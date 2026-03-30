@@ -76,4 +76,4 @@ jobs:
 
       - name: Test
         if: steps.check.outcome == 'success'
-        run: uv run pytest --ignore=tests/ml
+        run: uv run pytest --ignore=tests/ml || [ $? -eq 5 ]
