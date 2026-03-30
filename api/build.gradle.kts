@@ -36,8 +36,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-log4j2")
 
     // Spring AI
-    implementation("org.springframework.ai:spring-ai-ollama-spring-boot-starter")
-    implementation("org.springframework.ai:spring-ai-chromadb-store-spring-boot-starter")
+    implementation("org.springframework.ai:spring-ai-starter-model-ollama")
+    implementation("org.springframework.ai:spring-ai-starter-vector-store-chroma")
 
     // Database
     implementation("org.flywaydb:flyway-core")
