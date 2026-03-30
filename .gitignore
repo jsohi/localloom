@@ -10,6 +10,7 @@ api/bin/
 ml-sidecar/.venv/
 ml-sidecar/__pycache__/
 ml-sidecar/**/__pycache__/
+ml-sidecar/dist/
 *.pyc
 *.pyo
 
@@ -22,6 +23,8 @@ frontend/out/
 **/data/
 *.db
 *.sqlite
+*.wav
+*.mp3
 
 # IDE
 .idea/
