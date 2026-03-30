@@ -64,8 +64,8 @@ CREATE TABLE jobs (
     CONSTRAINT pk_jobs PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_jobs_entity_id ON jobs (entity_id);
-CREATE INDEX idx_jobs_status    ON jobs (status);
+CREATE INDEX idx_jobs_entity_id_type ON jobs (entity_id, entity_type);
+CREATE INDEX idx_jobs_status         ON jobs (status);
 
 CREATE TABLE conversations (
     id         UUID         NOT NULL DEFAULT gen_random_uuid(),

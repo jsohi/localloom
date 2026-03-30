@@ -34,7 +34,7 @@ public class Message {
     @Column(nullable = false)
     private MessageRole role;
 
-    @Column(columnDefinition = "text", nullable = false)
+    @Column(name = "content", columnDefinition = "text", nullable = false)
     private String content;
 
     @JdbcTypeCode(SqlTypes.JSON)
