@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "4.0.4"
     id("io.spring.dependency-management") version "1.1.7"
+    id("com.diffplug.spotless") version "7.0.4"
 }
 
 group = "com.localloom"
@@ -54,4 +55,14 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        importOrder("java", "jakarta", "org.springframework", "com.localloom", "")
+        removeUnusedImports()
+        googleJavaFormat("1.28.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }

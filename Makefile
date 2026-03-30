@@ -1,4 +1,4 @@
-.PHONY: setup dev test build clean
+.PHONY: setup dev lint format test build clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -9,6 +9,25 @@ setup:
 ## dev: Start API (:8080), ML sidecar (:8100), and frontend (:3000) concurrently.
 dev:
 	@bash scripts/dev.sh
+
+# ── Lint & Format ────────────────────────────────────────────────────────────
+## lint: Run linters for all three projects.
+lint:
+	@echo "==> Linting API (Spotless check)"
+	cd api && ./gradlew spotlessCheck
+	@echo "==> Linting ML sidecar (ruff)"
+	cd ml-sidecar && uv run ruff check .
+	@echo "==> Linting frontend (ESLint)"
+	cd frontend && npm run lint
+
+## format: Auto-format all three projects.
+format:
+	@echo "==> Formatting API (Spotless)"
+	cd api && ./gradlew spotlessApply
+	@echo "==> Formatting ML sidecar (ruff)"
+	cd ml-sidecar && uv run ruff format . && uv run ruff check --fix .
+	@echo "==> Formatting frontend (Prettier)"
+	cd frontend && npm run format
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 ## test: Run tests for all three projects.

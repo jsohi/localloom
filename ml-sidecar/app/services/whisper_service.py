@@ -60,8 +60,7 @@ class WhisperService:
         raw_segments, info = whisper_model.transcribe(audio_path)
 
         segments: list[Segment] = [
-            Segment(start=seg.start, end=seg.end, text=seg.text.strip())
-            for seg in raw_segments
+            Segment(start=seg.start, end=seg.end, text=seg.text.strip()) for seg in raw_segments
         ]
 
         elapsed = time.monotonic() - t0
