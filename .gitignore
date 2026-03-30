@@ -42,5 +42,8 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# MCP
+.mcp.json
+
 # Claude
 .claude/
