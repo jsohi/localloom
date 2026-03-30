@@ -17,6 +17,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -146,5 +147,27 @@ public class Source {
 
     public void setContentUnits(List<ContentUnit> contentUnits) {
         this.contentUnits = contentUnits;
+    }
+
+    public void addContentUnit(ContentUnit unit) {
+        contentUnits.add(unit);
+        unit.setSource(this);
+    }
+
+    public void removeContentUnit(ContentUnit unit) {
+        contentUnits.remove(unit);
+        unit.setSource(null);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Source other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }

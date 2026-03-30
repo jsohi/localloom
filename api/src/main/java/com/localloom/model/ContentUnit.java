@@ -1,6 +1,5 @@
 package com.localloom.model;
 
-import jakarta.persistence.Basic;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,6 +20,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -50,7 +50,6 @@ public class ContentUnit {
     @Enumerated(EnumType.STRING)
     private ContentUnitStatus status = ContentUnitStatus.PENDING;
 
-    @Basic(fetch = FetchType.LAZY)
     @Column(name = "raw_text", columnDefinition = "text")
     private String rawText;
 
@@ -162,5 +161,27 @@ public class ContentUnit {
 
     public void setFragments(List<ContentFragment> fragments) {
         this.fragments = fragments;
+    }
+
+    public void addFragment(ContentFragment fragment) {
+        fragments.add(fragment);
+        fragment.setContentUnit(this);
+    }
+
+    public void removeFragment(ContentFragment fragment) {
+        fragments.remove(fragment);
+        fragment.setContentUnit(null);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ContentUnit other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }
