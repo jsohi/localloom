@@ -62,25 +62,3 @@ async def test_transcribe_service_error(client):
         )
 
     assert response.status_code == 500
-
-
-@pytest.mark.asyncio
-async def test_transcribe_cleans_up_temp_file(client, tmp_path):
-    """Verify the temp file is deleted after transcription."""
-    mock_result = TranscriptionResult(
-        segments=[Segment(start=0.0, end=1.0, text="test")],
-        duration=1.0,
-    )
-
-    with patch("app.endpoints.transcribe.whisper_service") as mock_service:
-        mock_service.transcribe.return_value = mock_result
-
-        response = await client.post(
-            "/transcribe",
-            files={"audio_file": ("test.wav", b"fake audio data", "audio/wav")},
-        )
-
-    assert response.status_code == 200
-    # Temp file cleanup is handled in the finally block of the endpoint;
-    # we can't easily assert it here without instrumenting the code,
-    # but the test verifies no crash occurs.

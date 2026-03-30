@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.localloom.TestcontainersConfig;
 import com.localloom.model.EntityType;
 import com.localloom.model.JobType;
+import com.localloom.repository.JobRepository;
 import com.localloom.service.AudioService;
 import com.localloom.service.JobService;
 import com.localloom.service.SourceImportService;
@@ -31,8 +32,11 @@ class JobControllerIT {
   private MockMvc mockMvc;
   @Autowired private WebApplicationContext webApplicationContext;
 
+  @Autowired private JobRepository jobRepository;
+
   @BeforeEach
   void setUp() {
+    jobRepository.deleteAllInBatch();
     mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
   }
 

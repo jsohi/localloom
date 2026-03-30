@@ -112,25 +112,24 @@ class MlSidecarClientTest {
   }
 
   @Test
-  void transcribeHandlesTimeout() throws IOException {
+  void transcribeHandlesSlowResponse() throws IOException {
     wireMock.stubFor(
         post(urlEqualTo("/transcribe"))
             .willReturn(
                 aResponse()
-                    .withFixedDelay(5000)
+                    .withFixedDelay(3000)
                     .withHeader("Content-Type", "application/json")
-                    .withBody("{\"segments\": [], \"duration\": 0}")));
+                    .withBody(
+                        """
+                        {"segments": [{"start": 0.0, "end": 1.0, "text": "Delayed"}], "duration": 1.0}
+                        """)));
 
     var tmpFile = Files.createTempFile("test-audio", ".wav");
     Files.writeString(tmpFile, "fake audio data");
     try {
-      // With default timeout this should either succeed (slow) or throw.
-      // The test verifies the client doesn't crash on slow responses.
-      try {
-        client.transcribe(tmpFile);
-      } catch (MlSidecarClient.MlSidecarException e) {
-        // Expected for timeout
-      }
+      var result = client.transcribe(tmpFile);
+      assertThat(result.segments()).hasSize(1);
+      assertThat(result.segments().getFirst().text()).isEqualTo("Delayed");
     } finally {
       Files.deleteIfExists(tmpFile);
     }

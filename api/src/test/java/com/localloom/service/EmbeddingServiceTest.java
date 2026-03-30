@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.Filter.Expression;
+import org.springframework.ai.vectorstore.filter.Filter.ExpressionType;
 
 /**
  * Unit tests for EmbeddingService's filter-building logic. Uses reflection to test the private
@@ -32,6 +34,11 @@ class EmbeddingServiceTest {
     var id = UUID.randomUUID();
     var expression = invokeBuildFilterExpression(List.of(id), null);
     assertThat(expression).isNotNull();
+    assertThat(expression.type()).isEqualTo(ExpressionType.EQ);
+    var key = (Filter.Key) expression.left();
+    assertThat(key.key()).isEqualTo("source_id");
+    var value = (Filter.Value) expression.right();
+    assertThat(value.value()).isEqualTo(id.toString());
   }
 
   @Test
@@ -40,6 +47,8 @@ class EmbeddingServiceTest {
     var id2 = UUID.randomUUID();
     var expression = invokeBuildFilterExpression(List.of(id1, id2), null);
     assertThat(expression).isNotNull();
+    assertThat(expression.type()).isEqualTo(ExpressionType.OR);
+    assertThat(expression.toString()).contains(id1.toString()).contains(id2.toString());
   }
 
   @Test
@@ -47,6 +56,8 @@ class EmbeddingServiceTest {
     var id = UUID.randomUUID();
     var expression = invokeBuildFilterExpression(List.of(id), List.of(SourceType.PODCAST));
     assertThat(expression).isNotNull();
+    assertThat(expression.type()).isEqualTo(ExpressionType.AND);
+    assertThat(expression.toString()).contains("source_id").contains("source_type");
   }
 
   @Test
@@ -65,6 +76,11 @@ class EmbeddingServiceTest {
   void singleSourceTypeFilter() throws Exception {
     var expression = invokeBuildFilterExpression(null, List.of(SourceType.CONFLUENCE));
     assertThat(expression).isNotNull();
+    assertThat(expression.type()).isEqualTo(ExpressionType.EQ);
+    var key = (Filter.Key) expression.left();
+    assertThat(key.key()).isEqualTo("source_type");
+    var value = (Filter.Value) expression.right();
+    assertThat(value.value()).isEqualTo("CONFLUENCE");
   }
 
   @Test
@@ -72,13 +88,15 @@ class EmbeddingServiceTest {
     var expression =
         invokeBuildFilterExpression(null, List.of(SourceType.PODCAST, SourceType.FILE_UPLOAD));
     assertThat(expression).isNotNull();
+    assertThat(expression.type()).isEqualTo(ExpressionType.OR);
+    assertThat(expression.toString()).contains("PODCAST").contains("FILE_UPLOAD");
   }
 
-  private Filter.Expression invokeBuildFilterExpression(
+  private Expression invokeBuildFilterExpression(
       final List<UUID> sourceIds, final List<SourceType> sourceTypes) throws Exception {
     Method method =
         EmbeddingService.class.getDeclaredMethod("buildFilterExpression", List.class, List.class);
     method.setAccessible(true);
-    return (Filter.Expression) method.invoke(embeddingService, sourceIds, sourceTypes);
+    return (Expression) method.invoke(embeddingService, sourceIds, sourceTypes);
   }
 }

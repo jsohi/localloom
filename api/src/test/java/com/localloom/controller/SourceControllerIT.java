@@ -10,6 +10,8 @@ import com.localloom.TestcontainersConfig;
 import com.localloom.model.Source;
 import com.localloom.model.SourceType;
 import com.localloom.model.SyncStatus;
+import com.localloom.repository.ContentUnitRepository;
+import com.localloom.repository.JobRepository;
 import com.localloom.repository.SourceRepository;
 import com.localloom.service.AudioService;
 import com.localloom.service.EmbeddingService;
@@ -35,12 +37,17 @@ class SourceControllerIT {
   private MockMvc mockMvc;
   @Autowired private WebApplicationContext webApplicationContext;
 
+  @Autowired private SourceRepository sourceRepository;
+  @Autowired private ContentUnitRepository contentUnitRepository;
+  @Autowired private JobRepository jobRepository;
+
   @BeforeEach
   void setUp() {
+    contentUnitRepository.deleteAllInBatch();
+    jobRepository.deleteAllInBatch();
+    sourceRepository.deleteAllInBatch();
     mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
   }
-
-  @Autowired private SourceRepository sourceRepository;
 
   @MockitoBean private AudioService audioService;
   @MockitoBean private EmbeddingService embeddingService;

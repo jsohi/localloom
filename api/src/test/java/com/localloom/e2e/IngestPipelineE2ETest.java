@@ -14,6 +14,7 @@ import com.localloom.model.Source;
 import com.localloom.model.SourceType;
 import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentUnitRepository;
+import com.localloom.repository.JobRepository;
 import com.localloom.repository.SourceRepository;
 import com.localloom.service.AudioService;
 import com.localloom.service.SourceImportService;
@@ -42,13 +43,17 @@ class IngestPipelineE2ETest {
   private MockMvc mockMvc;
   @Autowired private WebApplicationContext webApplicationContext;
 
-  @BeforeEach
-  void setUp() {
-    mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
-  }
-
   @Autowired private SourceRepository sourceRepository;
   @Autowired private ContentUnitRepository contentUnitRepository;
+  @Autowired private JobRepository jobRepository;
+
+  @BeforeEach
+  void setUp() {
+    contentUnitRepository.deleteAllInBatch();
+    jobRepository.deleteAllInBatch();
+    sourceRepository.deleteAllInBatch();
+    mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+  }
 
   @MockitoBean private AudioService audioService;
   @MockitoBean private SourceImportService sourceImportService;

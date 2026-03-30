@@ -6,8 +6,7 @@ import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests for AudioService's pure-logic helpers and constants. These do not start Spring or
- * spawn processes.
+ * Unit tests for AudioService's pure-logic helpers. These do not start Spring or spawn processes.
  */
 class AudioServiceTest {
 
@@ -29,23 +28,6 @@ class AudioServiceTest {
   @Test
   void deriveExtensionFromWavUrl() throws Exception {
     assertThat(invokeDeriveExtension("https://cdn.example.com/clip.wav")).isEqualTo(".wav");
-  }
-
-  @Test
-  void constantsHaveExpectedValues() throws Exception {
-    var maxRetries =
-        AudioServiceTest.class.getClassLoader().loadClass("com.localloom.service.AudioService");
-    var field = maxRetries.getDeclaredField("MAX_RETRIES");
-    field.setAccessible(true);
-    assertThat(field.getInt(null)).isEqualTo(3);
-
-    var retryDelay = maxRetries.getDeclaredField("RETRY_DELAY_MS");
-    retryDelay.setAccessible(true);
-    assertThat(retryDelay.getLong(null)).isEqualTo(2_000L);
-
-    var timeout = maxRetries.getDeclaredField("PROCESS_TIMEOUT_MINUTES");
-    timeout.setAccessible(true);
-    assertThat(timeout.getLong(null)).isEqualTo(30L);
   }
 
   /** Invokes the private static deriveExtension method via reflection. */

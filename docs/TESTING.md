@@ -310,32 +310,22 @@ Blocked on RAG service + conversation/chat controller implementation.
 // build.gradle.kts — already declared
 testImplementation("org.springframework.boot:spring-boot-starter-test")
 testImplementation("org.springframework.boot:spring-boot-testcontainers")
-testImplementation("org.testcontainers:postgresql")
-testImplementation("org.testcontainers:chromadb")
-testImplementation("com.github.tomakehurst:wiremock-standalone:3.13.0")
-
-// Added for integration tests
+testImplementation("org.testcontainers:testcontainers-postgresql")
+testImplementation("org.testcontainers:testcontainers-chromadb")
+testImplementation("org.wiremock:wiremock-standalone:3.13.2")
 testImplementation("org.springframework.ai:spring-ai-test")
 testImplementation("org.springframework.ai:spring-ai-spring-boot-testcontainers")
-testImplementation("org.springframework.ai:spring-ai-transformers")  // ONNX local embeddings
+testImplementation("org.springframework.ai:spring-ai-starter-model-transformers")  // ONNX local embeddings
+testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 ```
 
-All Spring AI deps managed by `spring-ai-bom:1.0.0`.
+All Spring AI deps managed by `spring-ai-bom:2.0.0-M4`. Testcontainers managed by `testcontainers-bom:2.0.4`.
 
 ### 7.2 Embedding Strategy — ONNX (No Ollama)
 
-Industry standard for Spring AI testing: use `spring-ai-transformers` with the `all-MiniLM-L6-v2` ONNX model. This produces **real embeddings** on CPU — similarity search actually works in tests without Ollama.
+Industry standard for Spring AI testing: use `spring-ai-starter-model-transformers` with the `all-MiniLM-L6-v2` ONNX model. This produces **real embeddings** on CPU — similarity search actually works in tests without Ollama.
 
-```java
-@TestConfiguration
-class TestEmbeddingConfig {
-    @Bean
-    TransformersEmbeddingModel embeddingModel() {
-        return new TransformersEmbeddingModel();
-        // Defaults to all-MiniLM-L6-v2, downloads + caches on first use
-    }
-}
-```
+The `spring-ai-starter-model-transformers` dependency auto-configures `TransformersEmbeddingModel` — no manual bean definition needed. Tests that don't use real embeddings (e.g., controller tests) mock `EmbeddingModel` via `@MockitoBean` instead.
 
 ### 7.3 Shared Test Configuration
 
@@ -350,11 +340,9 @@ class TestcontainersConfig {
     }
 
     @Bean
-    ChromaDBContainer chromadb(DynamicPropertyRegistry registry) {
-        var container = new ChromaDBContainer("chromadb/chroma:latest");
-        registry.add("spring.ai.vectorstore.chroma.url",
-            () -> "http://" + container.getHost() + ":" + container.getMappedPort(8000));
-        return container;
+    @ServiceConnection
+    ChromaDBContainer chromadb() {
+        return new ChromaDBContainer("chromadb/chroma:1.0.12");
     }
 }
 ```
@@ -364,7 +352,7 @@ class TestcontainersConfig {
 | Dependency | Strategy | Rationale |
 |------------|----------|-----------|
 | PostgreSQL | Testcontainers `@ServiceConnection` | Real DB, Flyway migrations, JPA |
-| ChromaDB | Testcontainers + `@DynamicPropertySource` | Real vector store operations |
+| ChromaDB | Testcontainers `@ServiceConnection` | Real vector store operations |
 | EmbeddingModel | `TransformersEmbeddingModel` (ONNX) | Real embeddings, no Ollama |
 | Ollama ChatModel | `@MockBean` | Not needed for ingest pipeline |
 | ML Sidecar | WireMock | Mock `/transcribe`, `/tts`, `/health` |

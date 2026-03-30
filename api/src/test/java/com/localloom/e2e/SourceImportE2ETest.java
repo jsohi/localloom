@@ -7,10 +7,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.localloom.TestcontainersConfig;
@@ -18,6 +20,7 @@ import com.localloom.model.ContentUnitStatus;
 import com.localloom.model.SourceType;
 import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentUnitRepository;
+import com.localloom.repository.JobRepository;
 import com.localloom.repository.SourceRepository;
 import com.localloom.service.AudioService;
 import com.localloom.service.UrlResolver;
@@ -40,6 +43,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -53,6 +57,8 @@ class SourceImportE2ETest {
   @Autowired private WebApplicationContext webApplicationContext;
   @Autowired private SourceRepository sourceRepository;
   @Autowired private ContentUnitRepository contentUnitRepository;
+  @Autowired private JobRepository jobRepository;
+  @Autowired private ObjectMapper objectMapper;
 
   @MockitoBean private UrlResolver urlResolver;
   @MockitoBean private AudioService audioService;
@@ -76,6 +82,9 @@ class SourceImportE2ETest {
 
   @BeforeEach
   void setUp() throws Exception {
+    contentUnitRepository.deleteAllInBatch();
+    jobRepository.deleteAllInBatch();
+    sourceRepository.deleteAllInBatch();
     mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
     wireMock.resetAll();
 
@@ -137,8 +146,7 @@ class SourceImportE2ETest {
     var result =
         mockMvc
             .perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
-                        "/api/v1/sources")
+                MockMvcRequestBuilders.post("/api/v1/sources")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -175,11 +183,7 @@ class SourceImportE2ETest {
     contentUnitRepository.save(unit);
 
     // Delete via API
-    mockMvc
-        .perform(
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
-                "/api/v1/sources/" + source.getId()))
-        .andExpect(status().isNoContent());
+    mockMvc.perform(delete("/api/v1/sources/" + source.getId())).andExpect(status().isNoContent());
 
     // Verify cleanup
     assertThat(sourceRepository.findById(source.getId())).isEmpty();
@@ -191,8 +195,7 @@ class SourceImportE2ETest {
     var result =
         mockMvc
             .perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
-                        "/api/v1/sources")
+                MockMvcRequestBuilders.post("/api/v1/sources")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -207,13 +210,7 @@ class SourceImportE2ETest {
 
     // Extract job_id from response
     var responseBody = result.getResponse().getContentAsString();
-    var jobIdStr =
-        com.fasterxml.jackson.databind.ObjectMapper.class
-            .getDeclaredConstructor()
-            .newInstance()
-            .readTree(responseBody)
-            .get("job_id")
-            .asText();
+    var jobIdStr = objectMapper.readTree(responseBody).get("job_id").asText();
 
     // Verify job is retrievable
     mockMvc
