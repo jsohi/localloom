@@ -15,6 +15,8 @@ graph TB
             Controllers[REST Controllers]
             Services[Service Layer]
             Jobs[Job Scheduler<br/>@Async]
+            ConnReg[ConnectorRegistry]
+            Connectors[Source Connectors<br/>Podcast · Confluence · Teams<br/>GitHub · File Upload]
             SpringAI[Spring AI<br/>ChatClient + RAG Advisor]
             EmbedModel[OllamaEmbeddingModel]
             VectorStore[ChromaDbVectorStore]
@@ -22,7 +24,7 @@ graph TB
             SidecarClient[ML Sidecar Client]
         end
 
-        subgraph MLSidecar["ML Sidecar (Python / FastAPI)"]
+        subgraph MLSidecar["ML Sidecar (Python / FastAPI — Audio only)"]
             Transcribe["/transcribe<br/>Whisper"]
             TTS["/tts<br/>Piper TTS"]
         end
@@ -41,13 +43,15 @@ graph TB
     UI -->|HTTP / SSE| Controllers
     Controllers --> Services
     Services --> Jobs
+    Services --> ConnReg
+    ConnReg --> Connectors
     Services --> SpringAI
     Services --> Chunker
     Services --> VectorStore
-    Services --> SidecarClient
     Services --> DB
     Services --> Files
 
+    Connectors -->|Audio sources| SidecarClient
     SpringAI -->|Streaming Chat| Ollama
     EmbedModel -->|Embed Text| Ollama
     VectorStore --> Chroma
@@ -61,6 +65,8 @@ graph TB
     style Controllers fill:#16a34a,color:#fff
     style Services fill:#16a34a,color:#fff
     style Jobs fill:#16a34a,color:#fff
+    style ConnReg fill:#f97316,color:#fff
+    style Connectors fill:#f97316,color:#fff
     style SpringAI fill:#16a34a,color:#fff
     style EmbedModel fill:#16a34a,color:#fff
     style VectorStore fill:#16a34a,color:#fff
@@ -76,40 +82,50 @@ graph TB
 
 ---
 
-## 2. Podcast Import Pipeline
+## 2. Content Ingestion Pipeline
 
 ```mermaid
 flowchart TD
-    A[User submits Podcast URL] --> B{Detect URL Type}
+    A[User adds a source] --> B{Detect Source Type}
 
-    B -->|YouTube| C[yt-dlp: extract metadata]
-    B -->|Apple Podcasts| D[iTunes Lookup API<br/>resolve RSS feed]
-    B -->|Spotify| E[oEmbed API → name<br/>→ iTunes Search → RSS]
-    B -->|Raw RSS| F[Parse RSS directly]
+    B -->|Podcast URL| C[PodcastConnector<br/>Resolve feed + discover episodes]
+    B -->|Confluence URL| D[ConfluenceConnector<br/>List pages in space]
+    B -->|GitHub URL| E[GitHubConnector<br/>List files in repo]
+    B -->|Teams Channel| F[TeamsConnector<br/>List message threads]
+    B -->|File Upload| G[FileUploadConnector<br/>Accept uploaded files]
 
-    C --> G[Extract episode list<br/>Save metadata to DB]
-    D --> F
-    E --> F
-    F --> G
+    C --> H[Fetch audio<br/>yt-dlp or HTTP]
+    H --> I[POST /transcribe<br/>to Python Sidecar]
+    I --> J[Whisper large-v3-turbo<br/>timestamped segments]
+    J --> K[Save fragments<br/>to PostgreSQL]
 
-    G --> H[Download Audio<br/>yt-dlp or HTTP client]
-    H --> I[Convert to 16kHz WAV<br/>via ffmpeg]
-    I --> J[Save to data/audio/]
+    D --> L[Fetch page content<br/>via Confluence REST API]
+    L --> K
 
-    J --> K[POST /transcribe<br/>to Python Sidecar]
-    K --> L[Whisper large-v3-turbo<br/>generates timestamped segments]
-    L --> M[Save transcript segments<br/>to PostgreSQL]
+    E --> M[Fetch files<br/>via GitHub API]
+    M --> K
 
-    M --> N[Spring AI TokenTextSplitter<br/>~500 tokens, 50 overlap]
-    N --> O[Add documents to ChromaDbVectorStore<br/>(which uses OllamaEmbeddingModel to generate embeddings)]
-    O --> R[Mark Episode as INDEXED<br/>Job completed]
+    F --> N[Fetch messages<br/>via MS Graph API]
+    N --> K
+
+    G --> O[Read uploaded files<br/>text / markdown / PDF]
+    O --> K
+
+    K --> P[Spring AI TokenTextSplitter<br/>~500 tokens, 50 overlap]
+    P --> Q[Add documents to ChromaDbVectorStore<br/>uses OllamaEmbeddingModel for embeddings]
+    Q --> R[Mark ContentUnit as INDEXED]
 
     style A fill:#3b82f6,color:#fff
     style B fill:#f59e0b,color:#000
-    style K fill:#eab308,color:#000
-    style L fill:#eab308,color:#000
-    style N fill:#16a34a,color:#fff
-    style O fill:#16a34a,color:#fff
+    style C fill:#f97316,color:#fff
+    style D fill:#f97316,color:#fff
+    style E fill:#f97316,color:#fff
+    style F fill:#f97316,color:#fff
+    style G fill:#f97316,color:#fff
+    style I fill:#eab308,color:#000
+    style J fill:#eab308,color:#000
+    style P fill:#16a34a,color:#fff
+    style Q fill:#16a34a,color:#fff
     style R fill:#16a34a,color:#fff
 
     subgraph Spring Boot + Spring AI
@@ -120,17 +136,19 @@ flowchart TD
         F
         G
         H
-        I
-        J
+        K
+        L
         M
         N
         O
+        P
+        Q
         R
     end
 
     subgraph Python Sidecar
-        K
-        L
+        I
+        J
     end
 ```
 
@@ -140,15 +158,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[User asks question] --> B[Spring Boot receives<br/>POST /api/v1/query]
+    A[User asks question] --> B["Spring Boot receives<br/>POST /api/v1/query<br/>(optional: source_types filter)"]
 
     B --> C[Retrieve documents via<br/>Spring AI RetrievalAugmentationAdvisor]
-    C --> F[Return ranked chunks<br/>with episode metadata]
+    C --> F[Return ranked chunks<br/>with source metadata]
 
     F --> G[Spring AI builds<br/>augmented prompt]
 
     G --> H["System: Answer using ONLY<br/>provided context. Cite sources."]
-    G --> I["Context: 5 chunks with<br/>[Episode: title, timestamp]"]
+    G --> I["Context: 5 chunks with<br/>[Source: title, location]"]
     G --> J["User: original question"]
 
     H --> K[OllamaChatModel<br/>stream: true]
@@ -178,19 +196,44 @@ flowchart TD
 
 ---
 
-## 4. Episode Status Lifecycle
+## 4. ContentUnit Status Lifecycle
+
+### Audio Content (Podcasts)
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING: Episode discovered
+    [*] --> PENDING: ContentUnit discovered
 
-    PENDING --> DOWNLOADING: Download job starts
-    DOWNLOADING --> TRANSCRIBING: Audio saved to disk
-    TRANSCRIBING --> EMBEDDING: Transcript segments saved
+    PENDING --> FETCHING: Fetch job starts
+    FETCHING --> TRANSCRIBING: Audio saved to disk
+    TRANSCRIBING --> EMBEDDING: Transcript fragments saved
     EMBEDDING --> INDEXED: Vectors stored in ChromaDB
 
-    DOWNLOADING --> ERROR: Download failed
+    FETCHING --> ERROR: Download failed
     TRANSCRIBING --> ERROR: Whisper failed
+    EMBEDDING --> ERROR: Embedding failed
+
+    ERROR --> PENDING: Retry requested
+
+    INDEXED --> [*]
+```
+
+### Text Content (Confluence, GitHub, Teams)
+
+> **Note:** File uploads skip the FETCHING state since content is already local.
+> Upload lifecycle: PENDING → EXTRACTING → EMBEDDING → INDEXED
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: ContentUnit discovered
+
+    PENDING --> FETCHING: Fetch job starts
+    FETCHING --> EXTRACTING: Content downloaded
+    EXTRACTING --> EMBEDDING: Text fragments saved
+    EMBEDDING --> INDEXED: Vectors stored in ChromaDB
+
+    FETCHING --> ERROR: Fetch failed
+    EXTRACTING --> ERROR: Extraction failed
     EMBEDDING --> ERROR: Embedding failed
 
     ERROR --> PENDING: Retry requested
@@ -204,44 +247,46 @@ stateDiagram-v2
 
 ```mermaid
 erDiagram
-    PODCAST ||--o{ EPISODE : "has many"
-    EPISODE ||--o{ TRANSCRIPT_SEGMENT : "has many"
+    SOURCE ||--o{ CONTENT_UNIT : "has many"
+    CONTENT_UNIT ||--o{ CONTENT_FRAGMENT : "has many"
     CONVERSATION ||--o{ MESSAGE : "has many"
-    EPISODE ||--o{ JOB : "tracked by"
-    PODCAST ||--o{ JOB : "tracked by"
+    CONTENT_UNIT ||--o{ JOB : "tracked by"
+    SOURCE ||--o{ JOB : "tracked by"
 
-    PODCAST {
+    SOURCE {
         uuid id PK
-        string title
-        string author
+        string name
         string description
-        string artwork_url
-        string feed_url
-        enum source_type "RSS | YOUTUBE"
-        string source_url
+        enum source_type "PODCAST | CONFLUENCE | TEAMS | GITHUB | FILE_UPLOAD"
+        string origin_url
+        string icon_url
+        jsonb config "source-specific settings"
+        enum sync_status "IDLE | SYNCING | ERROR"
+        timestamp last_synced_at
         timestamp created_at
     }
 
-    EPISODE {
+    CONTENT_UNIT {
         uuid id PK
-        uuid podcast_id FK
+        uuid source_id FK
         string title
-        string description
+        enum content_type "AUDIO | PAGE | MESSAGE_THREAD | CODE_FILE | TEXT_FILE"
+        string external_id
+        string external_url
+        enum status "PENDING | FETCHING | TRANSCRIBING | EXTRACTING | EMBEDDING | INDEXED | ERROR"
+        text raw_text
+        jsonb metadata "type-specific fields"
         timestamp published_at
-        string audio_url
-        string audio_path
-        int duration_seconds
-        enum status "PENDING | DOWNLOADING | TRANSCRIBING | EMBEDDING | INDEXED | ERROR"
-        text transcript_text
         timestamp created_at
     }
 
-    TRANSCRIPT_SEGMENT {
+    CONTENT_FRAGMENT {
         bigint id PK
-        uuid episode_id FK
-        double start_time
-        double end_time
+        uuid content_unit_id FK
+        enum fragment_type "TIMED_SEGMENT | SECTION | MESSAGE | CODE_BLOCK | TEXT_BLOCK"
+        int sequence_index
         text text
+        jsonb location "type-specific location"
     }
 
     CONVERSATION {
@@ -256,14 +301,14 @@ erDiagram
         uuid conversation_id FK
         enum role "USER | ASSISTANT"
         text content
-        json sources
+        jsonb sources "polymorphic per source_type"
         string audio_path
         timestamp created_at
     }
 
     JOB {
         uuid id PK
-        enum type "DOWNLOAD | TRANSCRIBE | EMBED"
+        enum type "FETCH | TRANSCRIBE | EXTRACT | EMBED | SYNC"
         uuid entity_id
         enum status "PENDING | RUNNING | COMPLETED | FAILED"
         double progress
@@ -282,27 +327,38 @@ sequenceDiagram
     participant User
     participant Frontend as Next.js :3000
     participant API as Spring Boot + Spring AI :8080
+    participant ConnReg as ConnectorRegistry
     participant Sidecar as Python Sidecar :8100
     participant Ollama as Ollama :11434
     participant DB as PostgreSQL
     participant ChromaDB
 
-    Note over User,ChromaDB: === Podcast Import Flow ===
+    Note over User,ChromaDB: === Content Import Flow (Podcast Example) ===
 
-    User->>Frontend: Paste podcast URL
-    Frontend->>API: POST /api/v1/podcasts/import
-    API->>DB: Save podcast + episodes metadata
-    API-->>Frontend: {job_id, podcast_id}
+    User->>Frontend: Add source (paste URL)
+    Frontend->>API: POST /api/v1/sources
+    API->>ConnReg: Route to connector by source_type
+    ConnReg->>API: PodcastConnector selected
+    API->>DB: Save source + content units metadata
+    API-->>Frontend: {job_id, source_id}
 
-    loop For each episode (background)
-        API->>API: Download audio (yt-dlp / HTTP)
-        API->>DB: Update status → DOWNLOADING
-        API->>Sidecar: POST /transcribe (audio file)
-        Sidecar-->>API: [{start, end, text}, ...]
-        API->>DB: Save transcript segments
-        API->>DB: Update status → TRANSCRIBING
-        API->>API: Chunk transcript (uses TokenTextSplitter)
+    loop For each content unit (background)
+        API->>DB: Update status → FETCHING
+        API->>API: Fetch content (connector-specific)
+
+        alt Audio source (Podcast)
+            API->>DB: Update status → TRANSCRIBING
+            API->>Sidecar: POST /transcribe (audio file)
+            Sidecar-->>API: [{start, end, text}, ...]
+            API->>DB: Save content fragments
+        else Text source (Confluence, GitHub, Teams)
+            API->>DB: Update status → EXTRACTING
+            API->>API: Extract text (connector-specific)
+            API->>DB: Save content fragments
+        end
+
         API->>DB: Update status → EMBEDDING
+        API->>API: Chunk content (uses TokenTextSplitter)
         API->>API: Add documents to Vector Store
         Note right of API: ChromaDbVectorStore uses<br/>OllamaEmbeddingModel to generate<br/>and store embeddings in ChromaDB
         API->>DB: Update status → INDEXED
@@ -316,7 +372,7 @@ sequenceDiagram
     User->>Frontend: Ask question
     Frontend->>API: POST /api/v1/query (SSE)
     API->>API: Retrieve relevant documents
-    Note right of API: Uses RetrievalAugmentationAdvisor which<br/>embeds the query and searches the VectorStore
+    Note right of API: Uses RetrievalAugmentationAdvisor which<br/>embeds the query and searches the VectorStore<br/>(optional source_types filter)
     API-->>API: Ranked chunks + metadata
 
     API->>API: Build RAG prompt with context
@@ -358,9 +414,18 @@ graph LR
     subgraph API_Layer["API Layer (Java 25)"]
         SpringBoot[Spring Boot 4.0]
         SpringAI[Spring AI]
+        ConnRegistry[ConnectorRegistry]
         JPA[Spring Data JPA]
         Flyway[Flyway Migrations]
         Log4j2[Log4j2 2.25.3]
+    end
+
+    subgraph Connectors["Source Connectors"]
+        PodcastConn[Podcast]
+        ConfluenceConn[Confluence]
+        TeamsConn[MS Teams]
+        GitHubConn[GitHub]
+        FileConn[File Upload]
     end
 
     subgraph ML_Layer["ML Layer (Python 3.11+)"]
@@ -380,13 +445,21 @@ graph LR
     end
 
     Presentation --> API_Layer
+    API_Layer --> Connectors
     API_Layer --> ML_Layer
     API_Layer --> Data_Layer
     API_Layer --> Inference
+    Connectors -->|Audio sources| ML_Layer
     ML_Layer --> Data_Layer
 
     style NextJS fill:#3b82f6,color:#fff
     style SpringBoot fill:#16a34a,color:#fff
+    style ConnRegistry fill:#f97316,color:#fff
+    style PodcastConn fill:#f97316,color:#fff
+    style ConfluenceConn fill:#f97316,color:#fff
+    style TeamsConn fill:#f97316,color:#fff
+    style GitHubConn fill:#f97316,color:#fff
+    style FileConn fill:#f97316,color:#fff
     style FastAPI fill:#eab308,color:#000
     style Ollama fill:#a855f7,color:#fff
     style PostgreSQL fill:#336791,color:#fff
@@ -401,6 +474,7 @@ graph LR
 |-------|---------|
 | Blue | Frontend / User-facing |
 | Green | Java / Spring Boot API |
-| Yellow | Python ML Sidecar |
+| Orange | Source Connectors |
+| Yellow | Python ML Sidecar (audio only) |
 | Purple | LLM / Vector inference |
 | Gray | Storage / Persistence |
