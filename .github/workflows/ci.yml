@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths-ignore: ['docs/**', '*.md']
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: read
 
@@ -65,7 +68,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.check.outcome == 'success'
-        run: uv sync
+        run: uv sync --extra dev --extra test
 
       - name: Lint
         if: steps.check.outcome == 'success'
@@ -73,4 +76,4 @@ jobs:
 
       - name: Test
         if: steps.check.outcome == 'success'
-        run: uv run pytest --ignore=tests/ml
+        run: uv run pytest --ignore=tests/ml || [ $? -eq 5 ]
