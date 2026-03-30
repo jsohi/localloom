@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '*.md']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['docs/**', '*.md']
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API — Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile
+        run: ./gradlew compileJava
+
+      - name: Test
+        run: ./gradlew test
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-reports
+          path: api/build/reports/tests/
+
+  ml-sidecar:
+    name: ML Sidecar — Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml-sidecar
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check ml-sidecar exists
+        id: check
+        run: test -f pyproject.toml
+        continue-on-error: true
+
+      - uses: astral-sh/setup-uv@v4
+        if: steps.check.outcome == 'success'
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outcome == 'success'
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.check.outcome == 'success'
+        run: uv sync
+
+      - name: Lint
+        if: steps.check.outcome == 'success'
+        run: uv run ruff check .
+
+      - name: Test
+        if: steps.check.outcome == 'success'
+        run: uv run pytest --ignore=tests/ml
