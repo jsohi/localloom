@@ -3,8 +3,8 @@ package com.localloom.service;
 import com.localloom.model.SourceType;
 import com.localloom.service.dto.ResolvedEpisode;
 import com.localloom.service.dto.ResolvedPodcast;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.w3c.dom.Document;
@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 @Service
 public class UrlResolver {
 
-    private static final Logger log = LoggerFactory.getLogger(UrlResolver.class);
+    private static final Logger log = LogManager.getLogger(UrlResolver.class);
 
     private static final Pattern YOUTUBE_WATCH     = Pattern.compile("(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?.*v=([\\w-]+)");
     private static final Pattern YOUTUBE_SHORT     = Pattern.compile("(?:https?://)?youtu\\.be/([\\w-]+)");

@@ -3,8 +3,8 @@ package com.localloom.service;
 import com.localloom.model.ContentFragment;
 import com.localloom.model.ContentType;
 import com.localloom.model.SourceType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -22,7 +22,7 @@ import java.util.function.Function;
 @Service
 public class EmbeddingService {
 
-    private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);
+    private static final Logger log = LogManager.getLogger(EmbeddingService.class);
 
     private final VectorStore vectorStore;
     private final TokenTextSplitter textSplitter;

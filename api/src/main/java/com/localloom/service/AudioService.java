@@ -1,8 +1,8 @@
 package com.localloom.service;
 
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class AudioService {
 
-    private static final Logger log = LoggerFactory.getLogger(AudioService.class);
+    private static final Logger log = LogManager.getLogger(AudioService.class);
 
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 2_000L;
