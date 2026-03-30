@@ -7,14 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.localloom.TestcontainersConfig;
-import com.localloom.service.AudioService;
 import com.localloom.service.OllamaService;
-import com.localloom.service.SourceImportService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -33,10 +29,6 @@ class ModelControllerIT {
   @Autowired private WebApplicationContext webApplicationContext;
 
   @MockitoBean private OllamaService ollamaService;
-  @MockitoBean private AudioService audioService;
-  @MockitoBean private SourceImportService sourceImportService;
-  @MockitoBean private EmbeddingModel embeddingModel;
-  @MockitoBean private ChatModel chatModel;
 
   @BeforeEach
   void setUp() {
