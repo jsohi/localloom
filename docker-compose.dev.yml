@@ -6,7 +6,6 @@ services:
     command: ["./gradlew", "bootRun"]
     volumes:
       - ./api/src:/workspace/src
-      - ./api/build.gradle.kts:/workspace/build.gradle.kts
     environment:
       SPRING_DEVTOOLS_RESTART_ENABLED: "true"
 

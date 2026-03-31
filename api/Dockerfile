@@ -19,13 +19,13 @@ RUN ./gradlew bootJar -x test --no-daemon
 FROM eclipse-temurin:25-jre
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3 python3-pip && \
+    apt-get install -y --no-install-recommends ffmpeg python3 python3-pip curl && \
     pip install --break-system-packages yt-dlp && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY --from=build /workspace/build/libs/*.jar app.jar
+COPY --from=build /workspace/build/libs/localloom-0.0.1-SNAPSHOT.jar app.jar
 
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     mkdir -p /app/data/audio && chown -R appuser:appuser /app

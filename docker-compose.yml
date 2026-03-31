@@ -27,6 +27,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 10s
 
   api:
     build: ./api
@@ -36,6 +37,8 @@ services:
       postgres:
         condition: service_healthy
       chromadb:
+        condition: service_healthy
+      ml-sidecar:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-localloom}
@@ -48,6 +51,8 @@ services:
       SPRING_AI_VECTORSTORE_CHROMA_URL: http://chromadb:8000
       LOCALLOOM_SIDECAR_URL: http://ml-sidecar:8100
       LOCALLOOM_AUDIO_DIR: /app/data/audio
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - audio-data:/app/data/audio
     ports:

@@ -18,6 +18,7 @@ RUN npm run build
 
 # ── Stage 3: Runtime ─────────────────────────────────────────────────────────
 FROM node:20-alpine
+RUN apk add --no-cache curl
 
 WORKDIR /app
 
