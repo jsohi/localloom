@@ -12,6 +12,7 @@ import com.localloom.TestcontainersConfig;
 import com.localloom.model.ContentFragment;
 import com.localloom.model.ContentType;
 import com.localloom.model.SourceType;
+import com.localloom.repository.ContentFragmentRepository;
 import com.localloom.repository.ContentUnitRepository;
 import com.localloom.repository.JobRepository;
 import com.localloom.repository.SourceRepository;
@@ -39,12 +40,14 @@ class FileUploadConnectorIT {
 
   @Autowired private SourceRepository sourceRepository;
   @Autowired private ContentUnitRepository contentUnitRepository;
+  @Autowired private ContentFragmentRepository contentFragmentRepository;
   @Autowired private JobRepository jobRepository;
   @Autowired private EmbeddingService embeddingService;
   @Autowired private ObjectMapper objectMapper;
 
   @BeforeEach
   void setUp() {
+    contentFragmentRepository.deleteAllInBatch();
     contentUnitRepository.deleteAllInBatch();
     jobRepository.deleteAllInBatch();
     sourceRepository.deleteAllInBatch();
