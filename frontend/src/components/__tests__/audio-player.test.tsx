@@ -29,13 +29,10 @@ function createMockAudio() {
 
 let lastMockAudio: ReturnType<typeof createMockAudio>;
 
-vi.stubGlobal(
-  'Audio',
-  function MockAudio() {
-    lastMockAudio = createMockAudio();
-    return lastMockAudio;
-  },
-);
+vi.stubGlobal('Audio', function MockAudio() {
+  lastMockAudio = createMockAudio();
+  return lastMockAudio;
+});
 
 describe('AudioPlayer', () => {
   beforeEach(() => {

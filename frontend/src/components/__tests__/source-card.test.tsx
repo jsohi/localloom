@@ -64,7 +64,9 @@ describe('SourceCard', () => {
   });
 
   it('shows sync status badge', () => {
-    render(<SourceCard source={makeSource({ syncStatus: SyncStatus.SYNCING })} onDeleted={onDeleted} />);
+    render(
+      <SourceCard source={makeSource({ syncStatus: SyncStatus.SYNCING })} onDeleted={onDeleted} />,
+    );
     expect(screen.getByText('SYNCING')).toBeInTheDocument();
   });
 

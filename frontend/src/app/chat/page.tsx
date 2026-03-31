@@ -69,19 +69,19 @@ export default function ChatPage() {
                 <Skeleton className="h-10 w-full" />
               </>
             ) : conversations.length === 0 ? (
-              <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+              <p className="text-muted-foreground px-2 py-4 text-center text-xs">
                 No conversations yet
               </p>
             ) : (
               conversations.map((c) => (
                 <div
                   key={c.id}
-                  className={`group flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted ${
+                  className={`group hover:bg-muted flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                     activeId === c.id ? 'bg-muted font-medium' : ''
                   }`}
                   onClick={() => setActiveId(c.id)}
                 >
-                  <MessageSquareIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <MessageSquareIcon className="text-muted-foreground size-4 shrink-0" />
                   <span className="truncate">{c.title ?? 'Untitled'}</span>
                   <Button
                     variant="ghost"
@@ -103,7 +103,14 @@ export default function ChatPage() {
 
       {/* Chat area */}
       <div className="flex-1">
-        <ChatView key={activeId ?? 'new'} conversationId={activeId} onConversationCreated={(id) => { setActiveId(id); loadConversations(); }} />
+        <ChatView
+          key={activeId ?? 'new'}
+          conversationId={activeId}
+          onConversationCreated={(id) => {
+            setActiveId(id);
+            loadConversations();
+          }}
+        />
       </div>
     </div>
   );

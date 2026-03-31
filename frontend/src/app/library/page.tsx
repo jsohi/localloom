@@ -57,7 +57,12 @@ export default function LibraryPage() {
         <Separator orientation="vertical" className="mr-2 h-4" />
         <h1 className="text-lg font-semibold">Library</h1>
         <div className="ml-auto">
-          <ImportDialog onImported={() => { loadSources(); setJobRefreshKey((k) => k + 1); }} />
+          <ImportDialog
+            onImported={() => {
+              loadSources();
+              setJobRefreshKey((k) => k + 1);
+            }}
+          />
         </div>
       </header>
 
@@ -81,10 +86,13 @@ export default function LibraryPage() {
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16">
             <BookOpenIcon className="text-muted-foreground mb-4 size-12" />
             <h3 className="text-lg font-semibold">No sources yet</h3>
-            <p className="text-muted-foreground mb-4 text-sm">
-              Import a podcast to get started.
-            </p>
-            <ImportDialog onImported={() => { loadSources(); setJobRefreshKey((k) => k + 1); }} />
+            <p className="text-muted-foreground mb-4 text-sm">Import a podcast to get started.</p>
+            <ImportDialog
+              onImported={() => {
+                loadSources();
+                setJobRefreshKey((k) => k + 1);
+              }}
+            />
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

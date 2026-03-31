@@ -38,9 +38,7 @@ export function JobTracker({ refreshKey }: JobTrackerProps) {
       try {
         const allJobs = await getJobs();
         if (!isMounted) return;
-        const activeJobs = allJobs.filter(
-          (j) => j.status === 'PENDING' || j.status === 'RUNNING',
-        );
+        const activeJobs = allJobs.filter((j) => j.status === 'PENDING' || j.status === 'RUNNING');
         setJobs(activeJobs);
       } catch {
         // Silently ignore polling errors
