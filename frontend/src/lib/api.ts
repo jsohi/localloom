@@ -118,6 +118,12 @@ export interface StreamQueryOptions {
 export function streamQuery(opts: StreamQueryOptions): AbortController {
   const controller = new AbortController();
 
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
+  controller.signal.addEventListener('abort', () => {
+    reader?.cancel();
+  });
+
   fetch(`${API_BASE}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
@@ -133,7 +139,7 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
       if (!response.ok) {
         throw new Error(`Query failed: ${response.status}`);
       }
-      const reader = response.body?.getReader();
+      reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
       const decoder = new TextDecoder();
@@ -156,13 +162,9 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
             if (!data) continue;
             try {
               const parsed = JSON.parse(data);
-              const event = currentEvent || 'message';
-              if (event === 'token') opts.onToken(parsed.content);
-              else if (event === 'sources') opts.onSources(parsed.sources ?? []);
-              else if (event === 'done') opts.onDone(parsed.messageId, parsed.conversationId);
-              else if (parsed.content) opts.onToken(parsed.content);
-              else if (parsed.sources) opts.onSources(parsed.sources);
-              else if (parsed.messageId) opts.onDone(parsed.messageId, parsed.conversationId);
+              if (currentEvent === 'token') opts.onToken(parsed.content);
+              else if (currentEvent === 'sources') opts.onSources(parsed.sources ?? []);
+              else if (currentEvent === 'done') opts.onDone(parsed.messageId, parsed.conversationId);
             } catch {
               // Skip malformed data
             }
