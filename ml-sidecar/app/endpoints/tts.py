@@ -29,7 +29,10 @@ async def tts(request: TTSRequest) -> Response:
         raise HTTPException(status_code=422, detail="Text must not be empty.")
 
     if len(request.text) > 5000:
-        raise HTTPException(status_code=422, detail="Text exceeds maximum length of 5000 characters.")
+        raise HTTPException(
+            status_code=422,
+            detail="Text exceeds maximum length of 5000 characters.",
+        )
 
     try:
         wav_bytes = tts_service.synthesize(request.text, voice=request.voice)
