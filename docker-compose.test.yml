@@ -19,7 +19,7 @@ services:
 
   chromadb:
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8000'"]
       interval: 3s
       timeout: 2s
       retries: 5

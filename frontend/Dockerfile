@@ -16,6 +16,7 @@ ENV API_URL=${API_URL}
 
 COPY --from=deps /app/node_modules node_modules
 COPY . .
+RUN mkdir -p public
 
 RUN npm run build
 

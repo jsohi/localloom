@@ -33,7 +33,10 @@ spring:
           model: nomic-embed-text
     vectorstore:
       chroma:
-        url: http://localhost:8000
+        initialize-schema: true
+        client:
+          host: ${CHROMA_HOST:http://localhost}
+          port: ${CHROMA_PORT:8000}
 
 logging:
   config: classpath:log4j2-spring.xml

@@ -9,7 +9,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser && \
     mkdir -p /app/data/models /app/data/tts_output && \
     chown -R appuser:appuser /app
 

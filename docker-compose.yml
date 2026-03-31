@@ -49,9 +49,11 @@ services:
       # Mac: host.docker.internal works out of the box.
       # Linux: use 172.17.0.1 or add --add-host=host.docker.internal:host-gateway
       SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
-      SPRING_AI_VECTORSTORE_CHROMA_URL: http://chromadb:8000
+      CHROMA_HOST: http://chromadb
+      CHROMA_PORT: "8000"
       LOCALLOOM_SIDECAR_URL: http://ml-sidecar:8100
       LOCALLOOM_AUDIO_DIR: /app/data/audio
+      LOCALLOOM_AUDIO_SKIP_DEPENDENCY_CHECK: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -96,6 +98,7 @@ services:
       - "3000:3000"
     environment:
       API_URL: http://api:8080
+      HOSTNAME: "0.0.0.0"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
