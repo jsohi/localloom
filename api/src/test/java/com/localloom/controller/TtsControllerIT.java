@@ -68,9 +68,7 @@ class TtsControllerIT {
 
   @Test
   void serveAudioRejectPathTraversal() throws Exception {
-    // Spring rejects ../ paths — GlobalExceptionHandler catches and returns 500
-    mockMvc
-        .perform(get("/api/v1/audio/../../../etc/passwd"))
-        .andExpect(status().isInternalServerError());
+    // Spring rejects ../ paths — returns 404 via NoResourceFoundException handler
+    mockMvc.perform(get("/api/v1/audio/../../../etc/passwd")).andExpect(status().isNotFound());
   }
 }
