@@ -20,6 +20,7 @@ interface ChatViewProps {
 
 export function ChatView({ conversationId, onConversationCreated }: ChatViewProps) {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(!!conversationId);
   const [streamingContent, setStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [citations, setCitations] = useState<Citation[]>([]);
@@ -31,13 +32,13 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
     if (!conversationId) return;
     getConversation(conversationId)
       .then((conv) => {
-        setMessages(
-          conv.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })),
-        );
+        setMessages(conv.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
       })
-      .catch(() => {
-        // Conversation may have been deleted
-      });
+      .catch((err) => {
+        if (err instanceof Error && err.message.includes('404')) return;
+        console.error('Failed to load conversation:', err);
+      })
+      .finally(() => setLoadingHistory(false));
   }, [conversationId]);
 
   // Abort any active stream on unmount
@@ -109,7 +110,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
     <div className="flex h-full flex-col">
       <ScrollArea className="flex-1 px-4">
         <div className="mx-auto max-w-3xl py-4">
-          {messages.length === 0 && !isStreaming && (
+          {messages.length === 0 && !isStreaming && !loadingHistory && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <h2 className="text-2xl font-bold">Ask anything</h2>
               <p className="text-muted-foreground mt-2 text-sm">
