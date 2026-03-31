@@ -106,7 +106,7 @@ class SourceImportServiceIT {
   }
 
   @Test
-  void happyPathImportCreatesContentAndCompletes() {
+  void happyPathImportCreatesContentAndCompletes() throws Exception {
     var source = createSource("Happy Path Podcast");
     var job =
         jobService.createJob(
@@ -116,8 +116,7 @@ class SourceImportServiceIT {
 
     stubUrlResolver(source, 2);
 
-    // Call directly (bypasses @Async) — runs synchronously
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     // Verify source metadata updated
     var updatedSource = sourceRepository.findById(source.getId()).orElseThrow();
@@ -174,7 +173,7 @@ class SourceImportServiceIT {
         .thenReturn(tempWav)
         .thenThrow(new RuntimeException("Download failed for episode 2"));
 
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     var updatedSource = sourceRepository.findById(source.getId()).orElseThrow();
     assertThat(updatedSource.getSyncStatus()).isEqualTo(SyncStatus.ERROR);
@@ -194,7 +193,7 @@ class SourceImportServiceIT {
   }
 
   @Test
-  void emptyFeedCompletesImmediately() {
+  void emptyFeedCompletesImmediately() throws Exception {
     var source = createSource("Empty Feed Podcast");
     var job =
         jobService.createJob(
@@ -214,7 +213,7 @@ class SourceImportServiceIT {
                 SourceType.PODCAST,
                 List.of()));
 
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     var updatedJob = jobService.getJob(job.getId()).orElseThrow();
     assertThat(updatedJob.getStatus()).isEqualTo(JobStatus.COMPLETED);
@@ -224,14 +223,14 @@ class SourceImportServiceIT {
   }
 
   @Test
-  void sourceNotFoundFailsJob() {
+  void sourceNotFoundFailsJob() throws Exception {
     var job =
         jobService.createJob(
             com.localloom.model.JobType.SYNC,
             UUID.randomUUID(),
             com.localloom.model.EntityType.SOURCE);
 
-    sourceImportService.importSource(UUID.randomUUID(), job.getId());
+    sourceImportService.importSource(UUID.randomUUID(), job.getId()).get();
 
     var updatedJob = jobService.getJob(job.getId()).orElseThrow();
     assertThat(updatedJob.getStatus()).isEqualTo(JobStatus.FAILED);
@@ -239,7 +238,7 @@ class SourceImportServiceIT {
   }
 
   @Test
-  void urlResolverFailureFailsJob() {
+  void urlResolverFailureFailsJob() throws Exception {
     var source = createSource("Resolver Failure Podcast");
     var job =
         jobService.createJob(
@@ -249,7 +248,7 @@ class SourceImportServiceIT {
 
     when(urlResolver.resolve(any())).thenThrow(new RuntimeException("DNS resolution failed"));
 
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     var updatedSource = sourceRepository.findById(source.getId()).orElseThrow();
     assertThat(updatedSource.getSyncStatus()).isEqualTo(SyncStatus.ERROR);
@@ -264,7 +263,7 @@ class SourceImportServiceIT {
   }
 
   @Test
-  void transcriptionFailureMarksEpisodeError() {
+  void transcriptionFailureMarksEpisodeError() throws Exception {
     var source = createSource("Transcription Failure Podcast");
     var job =
         jobService.createJob(
@@ -280,7 +279,7 @@ class SourceImportServiceIT {
         post(urlEqualTo("/transcribe"))
             .willReturn(aResponse().withStatus(500).withBody("Internal Server Error")));
 
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     var units = contentUnitRepository.findBySourceId(source.getId());
     assertThat(units).hasSize(1);

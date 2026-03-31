@@ -6,26 +6,23 @@ import com.localloom.TestcontainersConfig;
 import com.localloom.model.Conversation;
 import com.localloom.model.Message;
 import com.localloom.model.MessageRole;
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Import(TestcontainersConfig.class)
 @ActiveProfiles("test")
+@Transactional
 class ConversationRepositoryIT {
 
   @Autowired private ConversationRepository conversationRepository;
   @Autowired private MessageRepository messageRepository;
-
-  @BeforeEach
-  void cleanDatabase() {
-    messageRepository.deleteAllInBatch();
-    conversationRepository.deleteAllInBatch();
-  }
+  @Autowired private EntityManager em;
 
   @Test
   void conversationCrud() {
@@ -43,6 +40,8 @@ class ConversationRepositoryIT {
     assertThat(found.get().getTitle()).isEqualTo("Test Chat");
 
     conversationRepository.deleteById(conversation.getId());
+    em.flush();
+    em.clear();
     assertThat(conversationRepository.findById(conversation.getId())).isEmpty();
   }
 
@@ -63,7 +62,8 @@ class ConversationRepositoryIT {
     conversation.addMessage(assistantMsg);
 
     conversationRepository.save(conversation);
-    conversationRepository.flush();
+    em.flush();
+    em.clear();
 
     var found = conversationRepository.findById(conversation.getId()).orElseThrow();
     assertThat(found.getMessages()).hasSize(2);
@@ -82,12 +82,14 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
-    conversationRepository.flush();
+    em.flush();
+    em.clear();
 
     assertThat(messageRepository.count()).isEqualTo(1);
 
     conversationRepository.deleteById(conversation.getId());
-    conversationRepository.flush();
+    em.flush();
+    em.clear();
 
     assertThat(messageRepository.count()).isZero();
   }
@@ -103,7 +105,7 @@ class ConversationRepositoryIT {
     msg1.setRole(MessageRole.USER);
     msg1.setContent("First message");
     conversation.addMessage(msg1);
-    conversationRepository.saveAndFlush(conversation);
+    em.flush();
 
     Thread.sleep(10);
 
@@ -111,7 +113,7 @@ class ConversationRepositoryIT {
     msg2.setRole(MessageRole.ASSISTANT);
     msg2.setContent("Second message");
     conversation.addMessage(msg2);
-    conversationRepository.saveAndFlush(conversation);
+    em.flush();
 
     Thread.sleep(10);
 
@@ -119,7 +121,8 @@ class ConversationRepositoryIT {
     msg3.setRole(MessageRole.USER);
     msg3.setContent("Third message");
     conversation.addMessage(msg3);
-    conversationRepository.saveAndFlush(conversation);
+    em.flush();
+    em.clear();
 
     var found = conversationRepository.findById(conversation.getId()).orElseThrow();
     assertThat(found.getMessages()).hasSize(3);
@@ -140,7 +143,8 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
-    conversationRepository.flush();
+    em.flush();
+    em.clear();
 
     var found = conversationRepository.findById(conversation.getId()).orElseThrow();
     var savedMsg = found.getMessages().getFirst();
@@ -158,11 +162,16 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
-    conversationRepository.flush();
+    em.flush();
+    em.clear();
+
     assertThat(messageRepository.count()).isEqualTo(1);
 
+    // Re-fetch to get managed entity
+    conversation = conversationRepository.findById(conversation.getId()).orElseThrow();
     conversation.removeMessage(conversation.getMessages().getFirst());
-    conversationRepository.saveAndFlush(conversation);
+    em.flush();
+    em.clear();
 
     assertThat(messageRepository.count()).isZero();
   }

@@ -112,7 +112,7 @@ class ImportFailureRecoveryE2ETest {
         com.github.tomakehurst.wiremock.client.WireMock.post(urlEqualTo("/transcribe"))
             .willReturn(aResponse().withStatus(500).withBody("Service unavailable")));
 
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     var updatedSource = sourceRepository.findById(source.getId()).orElseThrow();
     assertThat(updatedSource.getSyncStatus()).isEqualTo(SyncStatus.ERROR);
@@ -157,7 +157,7 @@ class ImportFailureRecoveryE2ETest {
 
     when(urlResolver.resolve(any())).thenThrow(new RuntimeException("Network error"));
 
-    sourceImportService.importSource(source.getId(), job.getId());
+    sourceImportService.importSource(source.getId(), job.getId()).get();
 
     // Source should be in error state
     var updatedSource = sourceRepository.findById(source.getId()).orElseThrow();

@@ -123,7 +123,7 @@ class RagServiceTest {
   @Test
   void loadConversationHistoryThrowsWhenNotFound() {
     var id = UUID.randomUUID();
-    when(conversationRepository.findById(id)).thenReturn(Optional.empty());
+    when(conversationRepository.findByIdWithMessages(id)).thenReturn(Optional.empty());
 
     var query = new RagQuery("test question", id, null, null, null);
     assertThatThrownBy(() -> ragService.answer(query))
@@ -147,7 +147,8 @@ class RagServiceTest {
     assistantMsg.setContent("RAG is Retrieval Augmented Generation.");
     conversation.addMessage(assistantMsg);
 
-    when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+    when(conversationRepository.findByIdWithMessages(conversationId))
+        .thenReturn(Optional.of(conversation));
 
     Method method = RagService.class.getDeclaredMethod("loadConversationHistory", UUID.class);
     method.setAccessible(true);
