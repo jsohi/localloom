@@ -18,13 +18,17 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(ResponseStatusException.class)
   public ResponseEntity<ErrorResponse> handleResponseStatus(final ResponseStatusException ex) {
-    var status = HttpStatus.valueOf(ex.getStatusCode().value());
-    return ResponseEntity.status(status).body(errorResponse(status, ex.getReason()));
+    var statusCode = ex.getStatusCode();
+    var reason =
+        ex.getReason() != null
+            ? ex.getReason()
+            : (statusCode instanceof HttpStatus hs ? hs.getReasonPhrase() : "Unknown error");
+    return ResponseEntity.status(statusCode).body(errorResponse(statusCode.value(), reason));
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(final IllegalArgumentException ex) {
-    return ResponseEntity.badRequest().body(errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage()));
+    return ResponseEntity.badRequest().body(errorResponse(400, ex.getMessage()));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -38,17 +42,16 @@ public class GlobalExceptionHandler {
     if (message.isBlank()) {
       message = "Validation failed";
     }
-    return ResponseEntity.badRequest().body(errorResponse(HttpStatus.BAD_REQUEST, message));
+    return ResponseEntity.badRequest().body(errorResponse(400, message));
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleGeneric(final Exception ex) {
     log.error("Unexpected error", ex);
-    return ResponseEntity.internalServerError()
-        .body(errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"));
+    return ResponseEntity.internalServerError().body(errorResponse(500, "Internal server error"));
   }
 
-  private static ErrorResponse errorResponse(final HttpStatus status, final String message) {
-    return new ErrorResponse(status.value(), message, Instant.now());
+  private static ErrorResponse errorResponse(final int status, final String message) {
+    return new ErrorResponse(status, message, Instant.now());
   }
 }
