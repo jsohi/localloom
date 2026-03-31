@@ -168,7 +168,6 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
             } catch {
               // Skip malformed data
             }
-            currentEvent = '';
           } else if (line.trim() === '') {
             currentEvent = '';
           }
