@@ -30,15 +30,23 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
   // Load existing messages when mounting with a conversationId
   useEffect(() => {
     if (!conversationId) return;
+    let ignore = false;
     getConversation(conversationId)
       .then((conv) => {
-        setMessages(conv.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+        if (!ignore) {
+          setMessages(conv.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+        }
       })
       .catch((err) => {
         if (err instanceof Error && err.message.includes('404')) return;
         console.error('Failed to load conversation:', err);
       })
-      .finally(() => setLoadingHistory(false));
+      .finally(() => {
+        if (!ignore) setLoadingHistory(false);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [conversationId]);
 
   // Abort any active stream on unmount
