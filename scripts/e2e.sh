@@ -16,7 +16,7 @@ command -v docker >/dev/null 2>&1 || { echo "ERROR: Docker not installed"; exit 
 command -v npx >/dev/null 2>&1 || { echo "ERROR: npx not found"; exit 1; }
 
 echo "==> Starting services..."
-docker compose $COMPOSE_FILES up -d --wait || {
+docker compose $COMPOSE_FILES up -d --wait --wait-timeout 120 || {
   echo "ERROR: Services failed to start. Logs:"
   docker compose $COMPOSE_FILES logs --tail=20
   exit 1

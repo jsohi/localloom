@@ -9,7 +9,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
     screenshot: 'only-on-failure',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     actionTimeout: 10_000,
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],

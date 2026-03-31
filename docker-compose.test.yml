@@ -11,6 +11,7 @@ services:
   postgres:
     healthcheck:
       interval: 3s
+      timeout: 2s
       retries: 5
       start_period: 3s
 
