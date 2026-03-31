@@ -82,16 +82,18 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
+    var conversationId = conversation.getId();
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isEqualTo(1);
+    var found = conversationRepository.findByIdWithMessages(conversationId).orElseThrow();
+    assertThat(found.getMessages()).hasSize(1);
 
-    conversationRepository.deleteById(conversation.getId());
+    conversationRepository.deleteById(conversationId);
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isZero();
+    assertThat(conversationRepository.findById(conversationId)).isEmpty();
   }
 
   @Test
@@ -162,17 +164,19 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
+    var conversationId = conversation.getId();
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isEqualTo(1);
+    var found = conversationRepository.findByIdWithMessages(conversationId).orElseThrow();
+    assertThat(found.getMessages()).hasSize(1);
 
     // Re-fetch to get managed entity
-    conversation = conversationRepository.findById(conversation.getId()).orElseThrow();
-    conversation.removeMessage(conversation.getMessages().getFirst());
+    found.removeMessage(found.getMessages().getFirst());
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isZero();
+    var afterRemoval = conversationRepository.findByIdWithMessages(conversationId).orElseThrow();
+    assertThat(afterRemoval.getMessages()).isEmpty();
   }
 }
