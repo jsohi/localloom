@@ -68,8 +68,7 @@ class TtsControllerIT {
 
   @Test
   void serveAudioRejectPathTraversal() throws Exception {
-    // Spring MVC normalizes ../ in URLs before routing, returning 404
-    // This verifies traversal paths never reach the audio serving endpoint
+    // Spring rejects ../ paths — returns 404 via NoResourceFoundException handler
     mockMvc.perform(get("/api/v1/audio/../../../etc/passwd")).andExpect(status().isNotFound());
   }
 }
