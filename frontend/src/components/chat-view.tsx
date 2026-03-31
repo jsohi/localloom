@@ -43,7 +43,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
       abortRef.current?.abort();
 
       const userMsg: ChatMessageData = {
-        id: `user-${Date.now()}`,
+        id: crypto.randomUUID(),
         role: 'USER',
         content: question,
       };
@@ -79,7 +79,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
         onError: (error) => {
           setMessages((prev) => [
             ...prev,
-            { id: `error-${Date.now()}`, role: 'ASSISTANT', content: `Error: ${error.message}` },
+            { id: crypto.randomUUID(), role: 'ASSISTANT', content: `Error: ${error.message}` },
           ]);
           setStreamingContent('');
           setIsStreaming(false);
