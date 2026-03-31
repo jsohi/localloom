@@ -73,6 +73,8 @@ export function deleteSource(id: string): Promise<void> {
   return fetchApi<void>(`/sources/${id}`, { method: 'DELETE' });
 }
 
+// Returns [] on error — the fragments endpoint doesn't exist yet,
+// so 404 is expected. TranscriptViewer falls back to rawText.
 export async function getContentFragments(contentUnitId: string): Promise<ContentFragment[]> {
   try {
     return await fetchApi<ContentFragment[]>(`/content-units/${contentUnitId}/fragments`);

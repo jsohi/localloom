@@ -31,10 +31,8 @@ function parseLocation(location?: string): SegmentLocation | undefined {
   return undefined;
 }
 
-function highlightText(text: string, query: string): React.ReactNode[] {
-  if (!query) return [text];
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`(${escaped})`, 'gi');
+function highlightText(text: string, regex: RegExp | null): React.ReactNode[] {
+  if (!regex) return [text];
   const parts = text.split(regex);
   return parts.map((part, i) =>
     regex.test(part) ? (
@@ -52,15 +50,20 @@ export function TranscriptViewer({ fragments, rawText }: TranscriptViewerProps) 
 
   const hasFragments = fragments.length > 0;
 
-  const matchCount = useMemo(() => {
-    if (!search) return 0;
+  const searchRegex = useMemo(() => {
+    if (!search) return null;
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(escaped, 'gi');
+    return new RegExp(`(${escaped})`, 'gi');
+  }, [search]);
+
+  const matchCount = useMemo(() => {
+    if (!searchRegex) return 0;
+    const countRegex = new RegExp(searchRegex.source, 'gi');
     if (hasFragments) {
-      return fragments.reduce((count, f) => count + (f.text.match(regex)?.length ?? 0), 0);
+      return fragments.reduce((count, f) => count + (f.text.match(countRegex)?.length ?? 0), 0);
     }
-    return rawText?.match(regex)?.length ?? 0;
-  }, [search, fragments, rawText, hasFragments]);
+    return rawText?.match(countRegex)?.length ?? 0;
+  }, [searchRegex, fragments, rawText, hasFragments]);
 
   if (!hasFragments && !rawText) {
     return (
@@ -100,14 +103,14 @@ export function TranscriptViewer({ fragments, rawText }: TranscriptViewerProps) 
                       {formatTimestamp(loc.startTime)}
                     </span>
                   )}
-                  <p className="leading-relaxed">{highlightText(fragment.text, search)}</p>
+                  <p className="leading-relaxed">{highlightText(fragment.text, searchRegex)}</p>
                 </div>
               );
             })}
           </div>
         ) : (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {highlightText(rawText ?? '', search)}
+            {highlightText(rawText ?? '', searchRegex)}
           </p>
         )}
       </ScrollArea>
