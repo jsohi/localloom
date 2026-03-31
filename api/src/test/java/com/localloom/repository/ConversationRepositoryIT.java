@@ -97,27 +97,23 @@ class ConversationRepositoryIT {
   }
 
   @Test
-  void messagesOrderedByCreatedAt() throws Exception {
+  void messagesOrderedByCreatedAt() {
     var conversation = new Conversation();
     conversation.setTitle("Ordering Test");
     conversation = conversationRepository.save(conversation);
 
-    // Delays ensure distinct createdAt values for @OrderBy("createdAt ASC") verification
+    // Each flush() triggers a DB roundtrip, ensuring distinct createdAt timestamps
     var msg1 = new Message();
     msg1.setRole(MessageRole.USER);
     msg1.setContent("First message");
     conversation.addMessage(msg1);
     em.flush();
 
-    Thread.sleep(10);
-
     var msg2 = new Message();
     msg2.setRole(MessageRole.ASSISTANT);
     msg2.setContent("Second message");
     conversation.addMessage(msg2);
     em.flush();
-
-    Thread.sleep(10);
 
     var msg3 = new Message();
     msg3.setRole(MessageRole.USER);

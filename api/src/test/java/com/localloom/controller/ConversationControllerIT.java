@@ -53,13 +53,11 @@ class ConversationControllerIT {
   void listConversationsOrderedByUpdatedAt() throws Exception {
     var older = new Conversation();
     older.setTitle("Older Chat");
-    conversationRepository.save(older);
-
-    Thread.sleep(10);
+    conversationRepository.saveAndFlush(older);
 
     var newer = new Conversation();
     newer.setTitle("Newer Chat");
-    conversationRepository.save(newer);
+    conversationRepository.saveAndFlush(newer);
 
     mockMvc
         .perform(get("/api/v1/conversations"))
