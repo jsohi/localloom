@@ -2,6 +2,7 @@ package com.localloom.controller;
 
 import com.localloom.model.Conversation;
 import com.localloom.repository.ConversationRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
@@ -26,6 +27,8 @@ public class ConversationController {
 
   public record UpdateTitleRequest(String title) {}
 
+  public record ConversationSummary(UUID id, String title, Instant createdAt, Instant updatedAt) {}
+
   private final ConversationRepository conversationRepository;
 
   public ConversationController(final ConversationRepository conversationRepository) {
@@ -33,8 +36,13 @@ public class ConversationController {
   }
 
   @GetMapping
-  public List<Conversation> listConversations() {
-    return conversationRepository.findAll(Sort.by(Sort.Direction.DESC, "updatedAt"));
+  public List<ConversationSummary> listConversations() {
+    return conversationRepository.findAll(Sort.by(Sort.Direction.DESC, "updatedAt")).stream()
+        .map(
+            c ->
+                new ConversationSummary(
+                    c.getId(), c.getTitle(), c.getCreatedAt(), c.getUpdatedAt()))
+        .toList();
   }
 
   @GetMapping("/{id}")
@@ -59,6 +67,9 @@ public class ConversationController {
   @PatchMapping("/{id}")
   public Conversation updateTitle(
       @PathVariable final UUID id, @RequestBody final UpdateTitleRequest request) {
+    if (request.title() == null || request.title().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title must not be blank");
+    }
     var conversation =
         conversationRepository
             .findById(id)
