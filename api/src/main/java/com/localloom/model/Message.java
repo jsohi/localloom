@@ -1,5 +1,6 @@
 package com.localloom.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,6 +27,7 @@ public class Message {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
+  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "conversation_id", nullable = false)
   private Conversation conversation;
