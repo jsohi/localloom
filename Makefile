@@ -50,7 +50,7 @@ build:
 	cd frontend && npm run build
 
 # ── Push (pre-flight checks) ────────────────────────────────────────────────
-## push: Run lint + test + build for all services, then git push. Use this instead of raw git push.
+## push: Run format + lint + test for all services, then git push. Use this instead of raw git push.
 push:
 	@echo "==> Step 1/4: Formatting"
 	cd api && ./gradlew spotlessApply
