@@ -62,14 +62,16 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.test {
     finalizedBy(tasks.jacocoTestReport)
 }
 
 tasks.jacocoTestReport {
-    dependsOn(tasks.test)
     reports {
-        xml.required = true
-        html.required = true
+        xml.required.set(true)
+        html.required.set(true)
     }
 }
 
