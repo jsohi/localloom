@@ -1,18 +1,16 @@
 package com.localloom.service;
 
 import com.localloom.model.MessageRole;
-import com.localloom.model.SourceType;
 import com.localloom.repository.ConversationRepository;
 import com.localloom.service.dto.Citation;
 import com.localloom.service.dto.RagQuery;
 import com.localloom.service.dto.RagResponse;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -22,11 +20,8 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
 import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
-import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
-import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -38,7 +33,7 @@ public class RagService {
   private static final Logger log = LogManager.getLogger(RagService.class);
 
   private final ChatClient chatClient;
-  private final ChatModel chatModel;
+  private final ChatClient.Builder compressionClientBuilder;
   private final VectorStore vectorStore;
   private final ConversationRepository conversationRepository;
   private final int defaultTopK;
@@ -50,7 +45,7 @@ public class RagService {
       final ConversationRepository conversationRepository,
       @Value("${localloom.chat.top-k:5}") final int defaultTopK) {
     this.chatClient = chatClient;
-    this.chatModel = chatModel;
+    this.compressionClientBuilder = ChatClient.builder(chatModel);
     this.vectorStore = vectorStore;
     this.conversationRepository = conversationRepository;
     this.defaultTopK = defaultTopK;
@@ -61,16 +56,7 @@ public class RagService {
     log.debug(
         "RAG query: question='{}' conversationId={}", query.question(), query.conversationId());
 
-    var advisor = buildAdvisor(query);
-    var promptSpec = chatClient.prompt().advisors(advisor).user(query.question());
-
-    if (query.conversationId() != null) {
-      var history = loadConversationHistory(query.conversationId());
-      if (!history.isEmpty()) {
-        promptSpec.messages(history);
-      }
-    }
-
+    var promptSpec = buildPrompt(query);
     var clientResponse = promptSpec.call().chatClientResponse();
     var answer = clientResponse.chatResponse().getResult().getOutput().getText();
     var citations = extractCitations(clientResponse);
@@ -86,6 +72,10 @@ public class RagService {
         query.question(),
         query.conversationId());
 
+    return buildPrompt(query).stream().content();
+  }
+
+  private ChatClientRequestSpec buildPrompt(final RagQuery query) {
     var advisor = buildAdvisor(query);
     var promptSpec = chatClient.prompt().advisors(advisor).user(query.question());
 
@@ -96,7 +86,7 @@ public class RagService {
       }
     }
 
-    return promptSpec.stream().content();
+    return promptSpec;
   }
 
   private RetrievalAugmentationAdvisor buildAdvisor(final RagQuery query) {
@@ -105,17 +95,10 @@ public class RagService {
     var retrieverBuilder =
         VectorStoreDocumentRetriever.builder().vectorStore(vectorStore).topK(topK);
 
-    var filterExpression = buildFilterExpression(query.sourceIds(), query.sourceTypes());
+    var filterExpression =
+        VectorStoreFilters.buildFilterExpression(query.sourceIds(), query.sourceTypes());
     if (filterExpression != null) {
       retrieverBuilder.filterExpression(filterExpression);
-    }
-
-    var queryTransformers = new ArrayList<QueryTransformer>();
-    if (query.conversationId() != null) {
-      queryTransformers.add(
-          CompressionQueryTransformer.builder()
-              .chatClientBuilder(ChatClient.builder(chatModel))
-              .build());
     }
 
     var advisorBuilder =
@@ -123,8 +106,11 @@ public class RagService {
             .documentRetriever(retrieverBuilder.build())
             .queryAugmenter(ContextualQueryAugmenter.builder().allowEmptyContext(false).build());
 
-    if (!queryTransformers.isEmpty()) {
-      advisorBuilder.queryTransformers(queryTransformers);
+    if (query.conversationId() != null) {
+      advisorBuilder.queryTransformers(
+          CompressionQueryTransformer.builder()
+              .chatClientBuilder(compressionClientBuilder)
+              .build());
     }
 
     return advisorBuilder.build();
@@ -171,44 +157,5 @@ public class RagService {
             })
         .distinct()
         .toList();
-  }
-
-  private Filter.Expression buildFilterExpression(
-      final List<UUID> sourceIds, final List<SourceType> sourceTypes) {
-    if ((sourceIds == null || sourceIds.isEmpty())
-        && (sourceTypes == null || sourceTypes.isEmpty())) {
-      return null;
-    }
-
-    var b = new FilterExpressionBuilder();
-    var sourceIdOp = buildOrChain(b, "source_id", sourceIds, UUID::toString);
-    var sourceTypeOp = buildOrChain(b, "source_type", sourceTypes, SourceType::name);
-
-    if (sourceIdOp != null && sourceTypeOp != null) {
-      return b.and(b.group(sourceIdOp), b.group(sourceTypeOp)).build();
-    }
-    if (sourceIdOp != null) {
-      return sourceIdOp.build();
-    }
-    return sourceTypeOp != null ? sourceTypeOp.build() : null;
-  }
-
-  private <T> FilterExpressionBuilder.Op buildOrChain(
-      final FilterExpressionBuilder b,
-      final String field,
-      final List<T> values,
-      final Function<T, String> mapper) {
-    if (values == null || values.isEmpty()) {
-      return null;
-    }
-    if (values.size() == 1) {
-      return b.eq(field, mapper.apply(values.getFirst()));
-    }
-    var ops = values.stream().map(v -> b.eq(field, mapper.apply(v))).toList();
-    var combined = ops.getFirst();
-    for (var i = 1; i < ops.size(); i++) {
-      combined = b.or(combined, ops.get(i));
-    }
-    return combined;
   }
 }

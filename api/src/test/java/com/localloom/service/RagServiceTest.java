@@ -7,11 +7,9 @@ import static org.mockito.Mockito.when;
 
 import com.localloom.model.Conversation;
 import com.localloom.model.MessageRole;
-import com.localloom.model.SourceType;
 import com.localloom.repository.ConversationRepository;
 import com.localloom.service.dto.RagQuery;
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,8 +25,6 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
-import org.springframework.ai.vectorstore.filter.Filter.ExpressionType;
 
 class RagServiceTest {
 
@@ -42,60 +38,6 @@ class RagServiceTest {
     var vectorStore = mock(VectorStore.class);
     conversationRepository = mock(ConversationRepository.class);
     ragService = new RagService(chatClient, chatModel, vectorStore, conversationRepository, 5);
-  }
-
-  @Test
-  void buildFilterExpressionWithSingleSourceId() throws Exception {
-    var id = UUID.randomUUID();
-    var expression = invokeBuildFilterExpression(List.of(id), null);
-    assertThat(expression).isNotNull();
-    assertThat(expression.type()).isEqualTo(ExpressionType.EQ);
-    var key = (Filter.Key) expression.left();
-    assertThat(key.key()).isEqualTo("source_id");
-    var value = (Filter.Value) expression.right();
-    assertThat(value.value()).isEqualTo(id.toString());
-  }
-
-  @Test
-  void buildFilterExpressionWithMultipleSourceIds() throws Exception {
-    var id1 = UUID.randomUUID();
-    var id2 = UUID.randomUUID();
-    var expression = invokeBuildFilterExpression(List.of(id1, id2), null);
-    assertThat(expression).isNotNull();
-    assertThat(expression.type()).isEqualTo(ExpressionType.OR);
-    assertThat(expression.toString()).contains(id1.toString()).contains(id2.toString());
-  }
-
-  @Test
-  void buildFilterExpressionWithSourceType() throws Exception {
-    var expression = invokeBuildFilterExpression(null, List.of(SourceType.PODCAST));
-    assertThat(expression).isNotNull();
-    assertThat(expression.type()).isEqualTo(ExpressionType.EQ);
-    var key = (Filter.Key) expression.left();
-    assertThat(key.key()).isEqualTo("source_type");
-    var value = (Filter.Value) expression.right();
-    assertThat(value.value()).isEqualTo("PODCAST");
-  }
-
-  @Test
-  void buildFilterExpressionWithCombinedFilters() throws Exception {
-    var id = UUID.randomUUID();
-    var expression = invokeBuildFilterExpression(List.of(id), List.of(SourceType.CONFLUENCE));
-    assertThat(expression).isNotNull();
-    assertThat(expression.type()).isEqualTo(ExpressionType.AND);
-    assertThat(expression.toString()).contains("source_id").contains("source_type");
-  }
-
-  @Test
-  void buildFilterExpressionWithNullInputsReturnsNull() throws Exception {
-    var expression = invokeBuildFilterExpression(null, null);
-    assertThat(expression).isNull();
-  }
-
-  @Test
-  void buildFilterExpressionWithEmptyListsReturnsNull() throws Exception {
-    var expression = invokeBuildFilterExpression(Collections.emptyList(), Collections.emptyList());
-    assertThat(expression).isNull();
   }
 
   @Test
@@ -218,14 +160,6 @@ class RagServiceTest {
     assertThat(history.get(0)).isInstanceOf(org.springframework.ai.chat.messages.UserMessage.class);
     assertThat(history.get(1))
         .isInstanceOf(org.springframework.ai.chat.messages.AssistantMessage.class);
-  }
-
-  private Filter.Expression invokeBuildFilterExpression(
-      final List<UUID> sourceIds, final List<SourceType> sourceTypes) throws Exception {
-    Method method =
-        RagService.class.getDeclaredMethod("buildFilterExpression", List.class, List.class);
-    method.setAccessible(true);
-    return (Filter.Expression) method.invoke(ragService, sourceIds, sourceTypes);
   }
 
   private static ChatModel stubChatModel() {
