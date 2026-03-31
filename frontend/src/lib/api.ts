@@ -1,6 +1,8 @@
 import type {
   Source,
   Job,
+  Conversation,
+  Message,
   ConnectorInfo,
   CreateSourceResponse,
   SyncSourceResponse,
@@ -76,4 +78,111 @@ export function getJobs(): Promise<Job[]> {
 
 export function getJob(id: string): Promise<Job> {
   return fetchApi<Job>(`/jobs/${id}`);
+}
+
+// Conversations
+
+export function getConversations(): Promise<Conversation[]> {
+  return fetchApi<Conversation[]>('/conversations');
+}
+
+export function getConversation(id: string): Promise<Conversation & { messages: Message[] }> {
+  return fetchApi<Conversation & { messages: Message[] }>(`/conversations/${id}`);
+}
+
+export function deleteConversation(id: string): Promise<void> {
+  return fetchApi<void>(`/conversations/${id}`, { method: 'DELETE' });
+}
+
+// Chat (SSE streaming)
+
+export interface Citation {
+  sourceType: string;
+  contentUnitTitle: string;
+  location: string;
+  sourceId: string;
+  contentUnitId: string;
+}
+
+export interface StreamQueryOptions {
+  question: string;
+  conversationId?: string;
+  sourceIds?: string[];
+  sourceTypes?: string[];
+  onToken: (content: string) => void;
+  onSources: (sources: Citation[]) => void;
+  onDone: (messageId: string) => void;
+  onError: (error: Error) => void;
+}
+
+export function streamQuery(opts: StreamQueryOptions): AbortController {
+  const controller = new AbortController();
+
+  fetch(`${API_BASE}/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    body: JSON.stringify({
+      question: opts.question,
+      conversationId: opts.conversationId,
+      sourceIds: opts.sourceIds,
+      sourceTypes: opts.sourceTypes,
+    }),
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Query failed: ${response.status}`);
+      }
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            const eventName = line.slice(6).trim();
+            // Next data line
+            const dataLineIdx = lines.indexOf(line) + 1;
+            if (dataLineIdx < lines.length && lines[dataLineIdx].startsWith('data:')) {
+              const data = lines[dataLineIdx].slice(5).trim();
+              try {
+                const parsed = JSON.parse(data);
+                if (eventName === 'token') opts.onToken(parsed.content);
+                else if (eventName === 'sources') opts.onSources(parsed.sources ?? []);
+                else if (eventName === 'done') opts.onDone(parsed.messageId);
+              } catch {
+                // Skip malformed events
+              }
+            }
+          } else if (line.startsWith('data:')) {
+            // Unnamed event — treat as token
+            const data = line.slice(5).trim();
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) opts.onToken(parsed.content);
+              else if (parsed.sources) opts.onSources(parsed.sources);
+              else if (parsed.messageId) opts.onDone(parsed.messageId);
+            } catch {
+              // Skip malformed data
+            }
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        opts.onError(err);
+      }
+    });
+
+  return controller;
 }
