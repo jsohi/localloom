@@ -37,12 +37,25 @@ jobs:
       - name: Test
         run: ./gradlew test
 
+      - name: Generate coverage report
+        if: always()
+        run: ./gradlew jacocoTestReport
+
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: api-test-reports
           path: api/build/reports/tests/
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage-reports
+          path: |
+            api/build/reports/jacoco/
+            api/build/reports/jacoco/test/jacocoTestReport.xml
 
   ml-sidecar:
     name: ML Sidecar — Lint & Test
