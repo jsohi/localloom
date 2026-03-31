@@ -22,6 +22,9 @@ docker compose $COMPOSE_FILES up -d --wait --wait-timeout 120 || {
   exit 1
 }
 
-echo "==> Running E2E tests..."
+echo "==> Ensuring Playwright browsers are installed..."
 cd "$REPO_ROOT/frontend"
+npx playwright install chromium
+
+echo "==> Running E2E tests..."
 npx playwright test "$@"
