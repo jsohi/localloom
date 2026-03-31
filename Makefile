@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test build push clean
+.PHONY: setup dev lint format test build push docker-build docker-up docker-down docker-logs clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -67,6 +67,23 @@ push:
 	@echo "==> Step 4/4: Pushing"
 	git push --force-with-lease -u origin $$(git branch --show-current)
 	@echo "==> Push complete."
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+## docker-build: Build all Docker images.
+docker-build:
+	docker compose build
+
+## docker-up: Start all services in detached mode.
+docker-up:
+	docker compose up -d
+
+## docker-down: Stop and remove all services.
+docker-down:
+	docker compose down
+
+## docker-logs: Follow logs from all services.
+docker-logs:
+	docker compose logs -f
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 ## clean: Remove all build artifacts.
