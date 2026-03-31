@@ -85,7 +85,7 @@ describe('AudioPlayer', () => {
     const errorCall = lastMockAudio.addEventListener.mock.calls.find(
       (call: unknown[]) => call[0] === 'error',
     );
-    if (!errorCall) return;
+    if (!errorCall) throw new Error('Could not find "error" event listener call');
 
     const errorHandler = errorCall[1] as () => void;
     act(() => {
