@@ -33,16 +33,15 @@ export function EpisodeItem({ episode }: EpisodeItemProps) {
   const [loaded, setLoaded] = useState(false);
 
   const loadFragments = useCallback(async () => {
-    if (loaded) return;
     setLoading(true);
     try {
       const data = await getContentFragments(episode.id);
       setFragments(data);
+      setLoaded(true);
     } finally {
       setLoading(false);
-      setLoaded(true);
     }
-  }, [episode.id, loaded]);
+  }, [episode.id]);
 
   useEffect(() => {
     if (expanded && !loaded) {
