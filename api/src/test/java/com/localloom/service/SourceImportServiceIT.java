@@ -23,6 +23,7 @@ import com.localloom.repository.SourceRepository;
 import com.localloom.service.dto.ResolvedEpisode;
 import com.localloom.service.dto.ResolvedPodcast;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -55,6 +57,8 @@ class SourceImportServiceIT {
 
   @MockitoBean private UrlResolver urlResolver;
   @MockitoBean private AudioService audioService;
+
+  @TempDir private Path tempDir;
 
   @BeforeAll
   static void startWireMock() {
@@ -96,7 +100,7 @@ class SourceImportServiceIT {
                         }
                         """)));
 
-    var tempWav = Files.createTempFile("import-it", ".wav");
+    var tempWav = tempDir.resolve("import-it.wav");
     Files.writeString(tempWav, "fake audio");
     when(audioService.downloadAndConvert(any(), any(), anyBoolean())).thenReturn(tempWav);
   }
@@ -164,7 +168,7 @@ class SourceImportServiceIT {
     stubUrlResolver(source, 2);
 
     // First call succeeds, second throws
-    var tempWav = Files.createTempFile("partial-it", ".wav");
+    var tempWav = tempDir.resolve("partial-it.wav");
     Files.writeString(tempWav, "fake audio");
     when(audioService.downloadAndConvert(any(), any(), anyBoolean()))
         .thenReturn(tempWav)

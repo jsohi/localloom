@@ -98,14 +98,14 @@ class ConversationRepositoryIT {
     conversation.setTitle("Ordering Test");
     conversation = conversationRepository.save(conversation);
 
-    // Add messages with small delays to ensure distinct createdAt
+    // Delays ensure distinct createdAt values for @OrderBy("createdAt ASC") verification
     var msg1 = new Message();
     msg1.setRole(MessageRole.USER);
     msg1.setContent("First message");
     conversation.addMessage(msg1);
     conversationRepository.saveAndFlush(conversation);
 
-    Thread.sleep(50);
+    Thread.sleep(10);
 
     var msg2 = new Message();
     msg2.setRole(MessageRole.ASSISTANT);
@@ -113,7 +113,7 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg2);
     conversationRepository.saveAndFlush(conversation);
 
-    Thread.sleep(50);
+    Thread.sleep(10);
 
     var msg3 = new Message();
     msg3.setRole(MessageRole.USER);

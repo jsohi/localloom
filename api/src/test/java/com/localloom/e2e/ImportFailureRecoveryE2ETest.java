@@ -30,12 +30,14 @@ import com.localloom.service.UrlResolver;
 import com.localloom.service.dto.ResolvedEpisode;
 import com.localloom.service.dto.ResolvedPodcast;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -66,6 +68,8 @@ class ImportFailureRecoveryE2ETest {
 
   @MockitoBean private UrlResolver urlResolver;
   @MockitoBean private AudioService audioService;
+
+  @TempDir private Path tempDir;
 
   @BeforeAll
   static void startWireMock() {
@@ -99,7 +103,7 @@ class ImportFailureRecoveryE2ETest {
 
     stubUrlResolverSingleEpisode(source);
 
-    var tempWav = Files.createTempFile("failure-e2e", ".wav");
+    var tempWav = tempDir.resolve("failure-e2e.wav");
     Files.writeString(tempWav, "fake audio");
     when(audioService.downloadAndConvert(any(), any(), anyBoolean())).thenReturn(tempWav);
 
