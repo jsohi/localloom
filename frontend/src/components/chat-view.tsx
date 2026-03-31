@@ -23,7 +23,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
   const [streamingContent, setStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [citations, setCitations] = useState<Citation[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Abort any active stream on unmount
@@ -34,9 +34,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
   const handleSend = useCallback(
@@ -66,7 +64,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
         onSources: (sources) => {
           setCitations(sources);
         },
-        onDone: (messageId) => {
+        onDone: (messageId, newConversationId) => {
           setMessages((prev) => [
             ...prev,
             { id: messageId, role: 'ASSISTANT', content: accumulated },
@@ -74,8 +72,8 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
           setStreamingContent('');
           setIsStreaming(false);
 
-          if (!conversationId && onConversationCreated) {
-            onConversationCreated(messageId);
+          if (!conversationId && newConversationId && onConversationCreated) {
+            onConversationCreated(newConversationId);
           }
         },
         onError: (error) => {
@@ -95,7 +93,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
 
   return (
     <div className="flex h-full flex-col">
-      <ScrollArea className="flex-1 px-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 px-4">
         <div className="mx-auto max-w-3xl py-4">
           {messages.length === 0 && !isStreaming && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -111,6 +109,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
           {isStreaming && streamingContent && (
             <ChatMessage role="ASSISTANT" content={streamingContent} isStreaming />
           )}
+          <div ref={bottomRef} />
         </div>
       </ScrollArea>
       <CitationPanel citations={citations} />

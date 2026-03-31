@@ -111,7 +111,7 @@ export interface StreamQueryOptions {
   sourceTypes?: string[];
   onToken: (content: string) => void;
   onSources: (sources: Citation[]) => void;
-  onDone: (messageId: string) => void;
+  onDone: (messageId: string, conversationId?: string) => void;
   onError: (error: Error) => void;
 }
 
@@ -159,10 +159,10 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
               const event = currentEvent || 'message';
               if (event === 'token') opts.onToken(parsed.content);
               else if (event === 'sources') opts.onSources(parsed.sources ?? []);
-              else if (event === 'done') opts.onDone(parsed.messageId);
+              else if (event === 'done') opts.onDone(parsed.messageId, parsed.conversationId);
               else if (parsed.content) opts.onToken(parsed.content);
               else if (parsed.sources) opts.onSources(parsed.sources);
-              else if (parsed.messageId) opts.onDone(parsed.messageId);
+              else if (parsed.messageId) opts.onDone(parsed.messageId, parsed.conversationId);
             } catch {
               // Skip malformed data
             }
