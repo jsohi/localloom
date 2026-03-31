@@ -41,10 +41,13 @@ public class TtsController {
   public ResponseEntity<Map<String, String>> generateTts(@PathVariable final UUID id) {
     log.info("TTS generation requested for messageId={}", id);
 
-    final var filename = ttsService.generateTts(id);
-    final var audioUrl = "/api/v1/audio/" + filename;
-
-    return ResponseEntity.ok(Map.of("audio_url", audioUrl));
+    try {
+      final var filename = ttsService.generateTts(id);
+      final var audioUrl = "/api/v1/audio/" + filename;
+      return ResponseEntity.ok(Map.of("audio_url", audioUrl));
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    }
   }
 
   @GetMapping("/audio/{filename}")

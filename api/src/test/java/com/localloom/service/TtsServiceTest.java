@@ -12,36 +12,26 @@ import static org.mockito.Mockito.when;
 import com.localloom.model.Message;
 import com.localloom.model.MessageRole;
 import com.localloom.repository.MessageRepository;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.server.ResponseStatusException;
+import org.junit.jupiter.api.io.TempDir;
 
 class TtsServiceTest {
 
   private MessageRepository messageRepository;
   private MlSidecarClient mlSidecarClient;
   private TtsService ttsService;
-  private Path tempAudioDir;
+
+  @TempDir private Path tempAudioDir;
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     messageRepository = mock(MessageRepository.class);
     mlSidecarClient = mock(MlSidecarClient.class);
-    tempAudioDir = Files.createTempDirectory("localloom-tts-test");
     ttsService = new TtsService(messageRepository, mlSidecarClient, tempAudioDir.toString());
-  }
-
-  @AfterEach
-  void tearDown() throws IOException {
-    try (var stream = Files.walk(tempAudioDir)) {
-      stream.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
-    }
   }
 
   @Test
@@ -90,7 +80,7 @@ class TtsServiceTest {
     when(messageRepository.findById(messageId)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> ttsService.generateTts(messageId))
-        .isInstanceOf(ResponseStatusException.class)
+        .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Message not found");
   }
 

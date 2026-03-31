@@ -11,11 +11,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -25,13 +27,17 @@ import org.springframework.web.context.WebApplicationContext;
 @ActiveProfiles("test")
 class TtsControllerIT {
 
+  @TempDir private static Path tempAudioDir;
+
   private MockMvc mockMvc;
   @Autowired private WebApplicationContext webApplicationContext;
   @Autowired private ConversationRepository conversationRepository;
   @Autowired private MessageRepository messageRepository;
 
-  @Value("${localloom.audio.dir}")
-  private String audioDir;
+  @DynamicPropertySource
+  static void audioProperties(final DynamicPropertyRegistry registry) {
+    registry.add("localloom.audio.dir", () -> tempAudioDir.toString());
+  }
 
   @BeforeEach
   void setUp() {
@@ -54,16 +60,10 @@ class TtsControllerIT {
 
   @Test
   void serveAudioReturnsFileWhenExists() throws Exception {
-    var dir = Path.of(audioDir);
-    Files.createDirectories(dir);
-    var audioFile = dir.resolve("test-serve.wav");
+    var audioFile = tempAudioDir.resolve("test-serve.wav");
     Files.write(audioFile, new byte[] {0, 1, 2, 3});
 
-    try {
-      mockMvc.perform(get("/api/v1/audio/test-serve.wav")).andExpect(status().isOk());
-    } finally {
-      Files.deleteIfExists(audioFile);
-    }
+    mockMvc.perform(get("/api/v1/audio/test-serve.wav")).andExpect(status().isOk());
   }
 
   @Test

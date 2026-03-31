@@ -9,9 +9,7 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class TtsService {
@@ -38,10 +36,7 @@ public class TtsService {
     final var message =
         messageRepository
             .findById(messageId)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Message not found: " + messageId));
+            .orElseThrow(() -> new IllegalArgumentException("Message not found: " + messageId));
 
     if (message.getAudioPath() != null) {
       log.info("TTS already exists for messageId={}, returning existing path", messageId);
