@@ -4,6 +4,7 @@ import type {
   Conversation,
   Message,
   ConnectorInfo,
+  ContentFragment,
   CreateSourceResponse,
   SyncSourceResponse,
   SourceDetailResponse,
@@ -70,6 +71,14 @@ export function syncSource(id: string): Promise<SyncSourceResponse> {
 
 export function deleteSource(id: string): Promise<void> {
   return fetchApi<void>(`/sources/${id}`, { method: 'DELETE' });
+}
+
+export async function getContentFragments(contentUnitId: string): Promise<ContentFragment[]> {
+  try {
+    return await fetchApi<ContentFragment[]>(`/content-units/${contentUnitId}/fragments`);
+  } catch {
+    return [];
+  }
 }
 
 // Jobs
