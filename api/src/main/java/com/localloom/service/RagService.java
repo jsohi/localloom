@@ -119,7 +119,7 @@ public class RagService {
   private List<Message> loadConversationHistory(final UUID conversationId) {
     var conversation =
         conversationRepository
-            .findById(conversationId)
+            .findByIdWithMessages(conversationId)
             .orElseThrow(
                 () -> new IllegalArgumentException("Conversation not found: " + conversationId));
 
