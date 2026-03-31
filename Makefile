@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test e2e build push docker-build docker-up docker-down docker-logs clean
+.PHONY: setup dev lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -72,6 +72,19 @@ push:
 	@echo "==> Step 4/4: Pushing"
 	git push --force-with-lease -u origin $$(git branch --show-current)
 	@echo "==> Push complete."
+
+# ── Start / Stop ────────────────────────────────────────────────────────
+## start: Start all services in production mode (Docker Compose + Ollama).
+start:
+	@bash scripts/start.sh prod
+
+## start-dev: Start infra in Docker, app services natively with hot reload.
+start-dev:
+	@bash scripts/start.sh dev
+
+## stop: Stop all running services.
+stop:
+	@bash scripts/start.sh stop
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 ## docker-build: Build all Docker images.
