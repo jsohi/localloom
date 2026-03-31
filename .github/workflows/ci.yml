@@ -81,3 +81,31 @@ jobs:
       - name: Test
         if: steps.check.outcome == 'success'
         run: uv run pytest --ignore=tests/ml || [ $? -eq 5 ]
+
+  frontend:
+    name: Frontend — Lint, Type-check, Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npx vitest run
