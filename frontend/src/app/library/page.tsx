@@ -33,6 +33,7 @@ function SourceCardSkeleton() {
 export default function LibraryPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
+  const [jobRefreshKey, setJobRefreshKey] = useState(0);
 
   const loadSources = useCallback(async () => {
     try {
@@ -56,7 +57,7 @@ export default function LibraryPage() {
         <Separator orientation="vertical" className="mr-2 h-4" />
         <h1 className="text-lg font-semibold">Library</h1>
         <div className="ml-auto">
-          <ImportDialog onImported={loadSources} />
+          <ImportDialog onImported={() => { loadSources(); setJobRefreshKey((k) => k + 1); }} />
         </div>
       </header>
 
@@ -68,7 +69,7 @@ export default function LibraryPage() {
           </p>
         </div>
 
-        <JobTracker />
+        <JobTracker refreshKey={jobRefreshKey} />
 
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -83,7 +84,7 @@ export default function LibraryPage() {
             <p className="text-muted-foreground mb-4 text-sm">
               Import a podcast to get started.
             </p>
-            <ImportDialog onImported={loadSources} />
+            <ImportDialog onImported={() => { loadSources(); setJobRefreshKey((k) => k + 1); }} />
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

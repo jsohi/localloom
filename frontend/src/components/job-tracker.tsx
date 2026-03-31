@@ -23,12 +23,14 @@ function jobStatusVariant(status: JobStatus): 'default' | 'secondary' | 'destruc
   }
 }
 
-export function JobTracker() {
+interface JobTrackerProps {
+  readonly refreshKey?: number;
+}
+
+export function JobTracker({ refreshKey }: JobTrackerProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-
     async function fetchJobs() {
       try {
         const allJobs = await getJobs();
@@ -36,23 +38,16 @@ export function JobTracker() {
           (j) => j.status === 'PENDING' || j.status === 'RUNNING',
         );
         setJobs(activeJobs);
-
-        if (activeJobs.length === 0 && intervalId) {
-          clearInterval(intervalId);
-          intervalId = undefined;
-        }
       } catch {
         // Silently ignore polling errors
       }
     }
 
     fetchJobs();
-    intervalId = setInterval(fetchJobs, 5000);
+    const intervalId = setInterval(fetchJobs, 5000);
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, []);
+    return () => clearInterval(intervalId);
+  }, [refreshKey]);
 
   if (jobs.length === 0) return null;
 
@@ -71,8 +66,10 @@ export function JobTracker() {
                 {job.status}
               </Badge>
             </div>
-            <Progress value={job.progress} className="h-2" />
-            <p className="text-muted-foreground mt-1 text-xs">{job.progress}% complete</p>
+            <Progress value={job.progress * 100} className="h-2" />
+            <p className="text-muted-foreground mt-1 text-xs">
+              {Math.round(job.progress * 100)}% complete
+            </p>
           </div>
         ))}
       </div>

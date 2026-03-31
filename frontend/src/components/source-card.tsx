@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { MicIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -66,11 +65,9 @@ export function SourceCard({ source, onDeleted }: SourceCardProps) {
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <div className="flex items-center gap-3">
           {source.iconUrl ? (
-            <Image
+            <img
               src={source.iconUrl}
               alt={source.name}
-              width={40}
-              height={40}
               className="size-10 rounded-md object-cover"
             />
           ) : (
