@@ -84,4 +84,14 @@ echo "==> Running E2E tests..."
 echo "    Model: $CHAT_MODEL"
 echo "    Base URL: http://localhost:3000"
 echo ""
-npx playwright test "$@"
+
+TEST_EXIT=0
+npx playwright test "$@" || TEST_EXIT=$?
+
+# Capture Docker logs for debugging regardless of test outcome
+mkdir -p "$REPO_ROOT/frontend/e2e-results"
+echo "==> Capturing Docker service logs..."
+docker compose $COMPOSE_FILES logs --timestamps > "$REPO_ROOT/frontend/e2e-results/docker-logs.txt" 2>&1
+echo "    Saved to frontend/e2e-results/docker-logs.txt"
+
+exit $TEST_EXIT

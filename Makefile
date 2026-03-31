@@ -103,6 +103,11 @@ docker-down:
 docker-logs:
 	docker compose logs -f
 
+# ── Logs ─────────────────────────────────────────────────────────────────────
+## logs: Tail all service log files.
+logs:
+	@tail -f logs/api.log logs/ml-sidecar.log 2>/dev/null || echo "No log files found. Start services first with 'make start' or 'make start-dev'."
+
 # ── Clean ────────────────────────────────────────────────────────────────────
 ## clean: Remove all build artifacts.
 clean:

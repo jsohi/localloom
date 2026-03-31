@@ -1,7 +1,15 @@
+x-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    <<: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-localloom}
       POSTGRES_USER: ${POSTGRES_USER:-localloom}
@@ -19,6 +27,7 @@ services:
   chromadb:
     image: chromadb/chroma:1.0.12
     restart: unless-stopped
+    <<: *default-logging
     volumes:
       - chroma-data:/chroma/chroma
     ports:
@@ -34,6 +43,7 @@ services:
     build: ./api
     image: localloom/api:${VERSION:-latest}
     restart: unless-stopped
+    <<: *default-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,10 +64,12 @@ services:
       LOCALLOOM_SIDECAR_URL: http://ml-sidecar:8100
       LOCALLOOM_AUDIO_DIR: /app/data/audio
       LOCALLOOM_AUDIO_SKIP_DEPENDENCY_CHECK: "true"
+      LOG_DIR: /app/logs
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - audio-data:/app/data/audio
+      - localloom-logs:/app/logs
     ports:
       - "8080:8080"
     healthcheck:
@@ -71,13 +83,16 @@ services:
     build: ./ml-sidecar
     image: localloom/ml-sidecar:${VERSION:-latest}
     restart: unless-stopped
+    <<: *default-logging
     environment:
       LOCALLOOM_MODEL_DIR: /app/data/models
       LOCALLOOM_TTS_OUTPUT_DIR: /app/data/tts_output
       PYTHONUNBUFFERED: "1"
+      LOG_DIR: /app/logs
     volumes:
       - models-data:/app/data/models
       - tts-data:/app/data/tts_output
+      - localloom-logs:/app/logs
     ports:
       - "8100:8100"
     healthcheck:
@@ -91,6 +106,7 @@ services:
     build: ./frontend
     image: localloom/frontend:${VERSION:-latest}
     restart: unless-stopped
+    <<: *default-logging
     depends_on:
       api:
         condition: service_healthy
@@ -111,3 +127,4 @@ volumes:
   audio-data:
   models-data:
   tts-data:
+  localloom-logs:

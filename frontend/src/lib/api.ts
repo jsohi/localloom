@@ -11,6 +11,7 @@ import type {
   LlmHealthResponse,
   ModelInfo,
 } from './types';
+import { logger } from './logger';
 
 const API_BASE = '/api/v1';
 
@@ -25,6 +26,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
   });
 
   if (!response.ok) {
+    logger.error(`API ${options?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`);
     throw new Error(`API error ${response.status}: ${response.statusText}`);
   }
 
@@ -187,6 +189,7 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
     })
     .catch((err) => {
       if (err.name !== 'AbortError') {
+        logger.error('Stream query failed:', err.message);
         opts.onError(err);
       }
     });

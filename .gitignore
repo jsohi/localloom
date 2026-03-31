@@ -21,6 +21,8 @@ frontend/out/
 
 # Runtime data
 **/data/
+logs/
+*.log
 *.db
 *.sqlite
 *.wav
