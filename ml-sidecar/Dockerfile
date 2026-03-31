@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* &&
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir uv
 
 WORKDIR /app
@@ -8,11 +9,11 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
+COPY app app
+
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     mkdir -p /app/data/models /app/data/tts_output && \
     chown -R appuser:appuser /app
-
-COPY app app
 
 USER appuser
 

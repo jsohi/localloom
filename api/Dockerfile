@@ -13,7 +13,8 @@ RUN ./gradlew dependencies --no-daemon
 
 # Source layer (changes frequently)
 COPY src src
-RUN ./gradlew bootJar -x test --no-daemon
+RUN ./gradlew bootJar --parallel -x test --no-daemon && \
+    cp build/libs/*-SNAPSHOT.jar build/libs/app.jar
 
 # ── Stage 2: Runtime ────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jre
@@ -25,7 +26,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY --from=build /workspace/build/libs/localloom-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /workspace/build/libs/app.jar app.jar
 
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     mkdir -p /app/data/audio && chown -R appuser:appuser /app
