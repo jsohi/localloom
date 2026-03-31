@@ -103,7 +103,7 @@ export default function ChatPage() {
 
       {/* Chat area */}
       <div className="flex-1">
-        <ChatView key={activeId ?? 'new'} conversationId={activeId} onConversationCreated={loadConversations} />
+        <ChatView key={activeId ?? 'new'} conversationId={activeId} onConversationCreated={(id) => { setActiveId(id); loadConversations(); }} />
       </div>
     </div>
   );

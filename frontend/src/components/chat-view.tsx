@@ -26,6 +26,13 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Abort any active stream on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -34,6 +41,9 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
 
   const handleSend = useCallback(
     (question: string) => {
+      // Abort any previous stream
+      abortRef.current?.abort();
+
       const userMsg: ChatMessageData = {
         id: `user-${Date.now()}`,
         role: 'USER',
