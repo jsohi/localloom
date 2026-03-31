@@ -15,14 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLlmHealth, getModels, getSources } from '@/lib/api';
+import { formatBytes } from '@/lib/utils';
 import type { LlmHealthResponse, ModelInfo, Source } from '@/lib/types';
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-}
 
 function SectionSkeleton() {
   return (
@@ -49,74 +43,45 @@ export function SettingsView() {
   const [healthError, setHealthError] = useState(false);
   const [modelsError, setModelsError] = useState(false);
 
-  useEffect(() => {
-    async function fetchInitialData() {
-      const results = await Promise.allSettled([getLlmHealth(), getModels(), getSources()]);
-      const [healthResult, modelsResult, sourcesResult] = results as [
-        PromiseSettledResult<LlmHealthResponse>,
-        PromiseSettledResult<ModelInfo[]>,
-        PromiseSettledResult<Source[]>,
-      ];
+  async function fetchAllData() {
+    const results = await Promise.allSettled([getLlmHealth(), getModels(), getSources()]);
+    const [healthResult, modelsResult, sourcesResult] = results as [
+      PromiseSettledResult<LlmHealthResponse>,
+      PromiseSettledResult<ModelInfo[]>,
+      PromiseSettledResult<Source[]>,
+    ];
 
-      if (healthResult.status === 'fulfilled') {
-        setHealth(healthResult.value);
-        setHealthError(false);
-      } else {
-        setHealthError(true);
-        toast.error('Failed to check LLM health. Is Ollama running?');
-      }
-
-      if (modelsResult.status === 'fulfilled') {
-        setModels(modelsResult.value);
-        setModelsError(false);
-      } else {
-        setModelsError(true);
-        toast.error('Failed to load available models.');
-      }
-
-      if (sourcesResult.status === 'fulfilled') {
-        setSources(sourcesResult.value);
-      } else {
-        toast.error('Failed to load sources.');
-      }
-
-      setLoading(false);
+    if (healthResult.status === 'fulfilled') {
+      setHealth(healthResult.value);
+      setHealthError(false);
+    } else {
+      setHealthError(true);
+      toast.error('Failed to check LLM health. Is Ollama running?');
     }
 
-    fetchInitialData();
+    if (modelsResult.status === 'fulfilled') {
+      setModels(modelsResult.value);
+      setModelsError(false);
+    } else {
+      setModelsError(true);
+      toast.error('Failed to load available models.');
+    }
+
+    if (sourcesResult.status === 'fulfilled') {
+      setSources(sourcesResult.value);
+    } else {
+      toast.error('Failed to load sources.');
+    }
+  }
+
+  useEffect(() => {
+    fetchAllData().finally(() => setLoading(false));
   }, []);
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      const results = await Promise.allSettled([getLlmHealth(), getModels(), getSources()]);
-      const [healthResult, modelsResult, sourcesResult] = results as [
-        PromiseSettledResult<LlmHealthResponse>,
-        PromiseSettledResult<ModelInfo[]>,
-        PromiseSettledResult<Source[]>,
-      ];
-
-      if (healthResult.status === 'fulfilled') {
-        setHealth(healthResult.value);
-        setHealthError(false);
-      } else {
-        setHealthError(true);
-        toast.error('Failed to check LLM health. Is Ollama running?');
-      }
-
-      if (modelsResult.status === 'fulfilled') {
-        setModels(modelsResult.value);
-        setModelsError(false);
-      } else {
-        setModelsError(true);
-        toast.error('Failed to load available models.');
-      }
-
-      if (sourcesResult.status === 'fulfilled') {
-        setSources(sourcesResult.value);
-      } else {
-        toast.error('Failed to load sources.');
-      }
+      await fetchAllData();
     } finally {
       setRefreshing(false);
     }
