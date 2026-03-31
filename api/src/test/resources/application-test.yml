@@ -23,6 +23,8 @@ logging:
 localloom:
   chat:
     system-prompt: "Test system prompt"
+    rag-system-prompt: "Test RAG system prompt"
+    top-k: 3
   sidecar:
     url: http://localhost:${wiremock.server.port:9999}
   audio:

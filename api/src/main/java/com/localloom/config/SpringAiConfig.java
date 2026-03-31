@@ -41,6 +41,13 @@ public class SpringAiConfig {
     return ChatClient.builder(chatModel).defaultSystem(systemPrompt).build();
   }
 
+  @Bean("ragChatClient")
+  ChatClient ragChatClient(
+      final ChatModel chatModel,
+      @Value("${localloom.chat.rag-system-prompt}") final String ragSystemPrompt) {
+    return ChatClient.builder(chatModel).defaultSystem(ragSystemPrompt).build();
+  }
+
   @Bean
   ApplicationRunner ollamaHealthCheck(final OllamaService ollamaService) {
     return args -> {

@@ -33,6 +33,7 @@ public class Conversation {
   private Instant updatedAt;
 
   @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, orphanRemoval = true)
+  @jakarta.persistence.OrderBy("createdAt ASC")
   private List<Message> messages = new ArrayList<>();
 
   @PrePersist

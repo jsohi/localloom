@@ -40,6 +40,7 @@ dependencies {
     // Spring AI
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("org.springframework.ai:spring-ai-starter-vector-store-chroma")
+    implementation("org.springframework.ai:spring-ai-rag")
 
     // Database
     implementation("org.springframework.boot:spring-boot-starter-flyway")
