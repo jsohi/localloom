@@ -40,9 +40,9 @@ test:
 	cd frontend && npm test
 
 # ── E2E ──────────────────────────────────────────────────────────────────────
-## e2e: Run E2E tests with Playwright (requires Docker + Ollama running).
+## e2e: Run E2E tests with Playwright (requires Docker + Ollama running). Pass ARGS for Playwright flags.
 e2e:
-	bash scripts/e2e.sh
+	bash scripts/e2e.sh $(ARGS)
 
 # ── Build ────────────────────────────────────────────────────────────────────
 ## build: Build all three projects (skips tests).

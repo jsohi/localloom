@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILES="-f $REPO_ROOT/docker-compose.yml -f $REPO_ROOT/docker-compose.test.yml"
+COMPOSE_FILES="-p localloom-test -f $REPO_ROOT/docker-compose.yml -f $REPO_ROOT/docker-compose.test.yml"
 
 cleanup() {
   echo "==> Stopping services..."
