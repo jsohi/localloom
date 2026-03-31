@@ -63,7 +63,7 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
 
   const handleSeek = useCallback((value: number[]) => {
     const audio = audioRef.current;
-    if (!audio || !value[0]) return;
+    if (!audio || value[0] === undefined) return;
     audio.currentTime = value[0];
     setCurrentTime(value[0]);
   }, []);
@@ -72,13 +72,15 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     setSpeed((prev) => {
       const currentIndex = SPEED_OPTIONS.indexOf(prev as (typeof SPEED_OPTIONS)[number]);
       const nextIndex = (currentIndex + 1) % SPEED_OPTIONS.length;
-      const nextSpeed = SPEED_OPTIONS[nextIndex];
-      if (audioRef.current) {
-        audioRef.current.playbackRate = nextSpeed;
-      }
-      return nextSpeed;
+      return SPEED_OPTIONS[nextIndex];
     });
   }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = speed;
+    }
+  }, [speed]);
 
   if (error) {
     return (
