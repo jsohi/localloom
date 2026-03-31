@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./api
+      target: build
+    command: ["./gradlew", "bootRun"]
+    volumes:
+      - ./api/src:/workspace/src
+      - ./api/build.gradle.kts:/workspace/build.gradle.kts
+    environment:
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+
+  ml-sidecar:
+    volumes:
+      - ./ml-sidecar/app:/app/app
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100", "--reload"]
+
+  frontend:
+    build:
+      context: ./frontend
+      target: deps
+    command: ["npm", "run", "dev"]
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/next.config.js:/app/next.config.js

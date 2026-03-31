@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-localloom}
+      POSTGRES_USER: ${POSTGRES_USER:-localloom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localloom}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-localloom}"]
+      interval: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:1.0.12
+    restart: unless-stopped
+    volumes:
+      - chroma-data:/chroma/chroma
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: ./api
+    image: localloom/api:${VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-localloom}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-localloom}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-localloom}
+      # Ollama runs natively outside Docker for GPU access.
+      # Mac: host.docker.internal works out of the box.
+      # Linux: use 172.17.0.1 or add --add-host=host.docker.internal:host-gateway
+      SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      SPRING_AI_VECTORSTORE_CHROMA_URL: http://chromadb:8000
+      LOCALLOOM_SIDECAR_URL: http://ml-sidecar:8100
+      LOCALLOOM_AUDIO_DIR: /app/data/audio
+    volumes:
+      - audio-data:/app/data/audio
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/models/llm/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ml-sidecar:
+    build: ./ml-sidecar
+    image: localloom/ml-sidecar:${VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      LOCALLOOM_MODEL_DIR: /app/data/models
+      LOCALLOOM_TTS_OUTPUT_DIR: /app/data/tts_output
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - models-data:/app/data/models
+      - tts-data:/app/data/tts_output
+    ports:
+      - "8100:8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    image: localloom/frontend:${VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: http://api:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres-data:
+  chroma-data:
+  audio-data:
+  models-data:
+  tts-data:
