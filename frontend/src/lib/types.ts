@@ -127,3 +127,23 @@ export interface ConnectorInfo {
   enabled: boolean;
   configured: boolean;
 }
+
+// Settings / Models
+
+export interface LlmHealthResponse {
+  status: string;
+  model?: string;
+}
+
+export interface ModelInfo {
+  name: string;
+  modifiedAt?: string;
+  size?: number;
+  digest?: string;
+  details?: {
+    format?: string;
+    family?: string;
+    parameterSize?: string;
+    quantizationLevel?: string;
+  };
+}
