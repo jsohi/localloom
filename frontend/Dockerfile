@@ -11,6 +11,9 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+ARG API_URL=http://localhost:8080
+ENV API_URL=${API_URL}
+
 COPY --from=deps /app/node_modules node_modules
 COPY . .
 

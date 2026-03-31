@@ -14,6 +14,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-localloom}"]
       interval: 5s
       retries: 5
+      start_period: 5s
 
   chromadb:
     image: chromadb/chroma:1.0.12
@@ -62,7 +63,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 20s
 
   ml-sidecar:
     build: ./ml-sidecar
@@ -79,10 +80,10 @@ services:
       - "8100:8100"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 15s
+      start_period: 30s
 
   frontend:
     build: ./frontend
