@@ -196,6 +196,18 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
   return controller;
 }
 
+// TTS
+
+export interface TtsResponse {
+  audio_url: string;
+}
+
+export function generateTts(messageId: string): Promise<TtsResponse> {
+  return fetchApi<TtsResponse>(`/messages/${messageId}/tts`, {
+    method: 'POST',
+  });
+}
+
 // Models / Health
 
 export function getLlmHealth(): Promise<LlmHealthResponse> {

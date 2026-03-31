@@ -65,7 +65,7 @@ push:
 	cd ml-sidecar && uv run pytest --ignore=tests/ml 2>/dev/null || true
 	cd frontend && npx vitest run
 	@echo "==> Step 4/4: Pushing"
-	git push -u origin $$(git branch --show-current)
+	git push --force-with-lease -u origin $$(git branch --show-current)
 	@echo "==> Push complete."
 
 # ── Clean ────────────────────────────────────────────────────────────────────
