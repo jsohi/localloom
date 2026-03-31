@@ -1,5 +1,6 @@
 package com.localloom.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -92,6 +93,16 @@ class GlobalExceptionHandlerIT {
             .andReturn();
 
     var contentType = result.getResponse().getContentType();
-    assert contentType != null && contentType.contains("application/json");
+    assertThat(contentType).isNotNull().contains("application/json");
+  }
+
+  @Test
+  void notFoundMessageContainsEntityInfo() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/conversations/00000000-0000-0000-0000-000000000099"))
+        .andExpect(status().isNotFound())
+        .andExpect(
+            jsonPath("$.message")
+                .value("Conversation not found: 00000000-0000-0000-0000-000000000099"));
   }
 }
