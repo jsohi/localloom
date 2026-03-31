@@ -147,3 +147,8 @@ export interface ModelInfo {
     quantizationLevel?: string;
   };
 }
+
+export interface SegmentLocation {
+  startTime: number;
+  endTime: number;
+}
