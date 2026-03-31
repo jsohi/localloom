@@ -7,14 +7,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.stereotype.Service;
 
@@ -104,7 +102,7 @@ public class EmbeddingService {
 
     final var requestBuilder = SearchRequest.builder().query(query).topK(topK);
 
-    final var filterExpression = buildFilterExpression(sourceIds, sourceTypes);
+    final var filterExpression = VectorStoreFilters.buildFilterExpression(sourceIds, sourceTypes);
     if (filterExpression != null) {
       requestBuilder.filterExpression(filterExpression);
     }
@@ -139,40 +137,5 @@ public class EmbeddingService {
     }
     sb.append("\n").append(fragment.getText());
     return sb.toString();
-  }
-
-  private Filter.Expression buildFilterExpression(
-      final List<UUID> sourceIds, final List<SourceType> sourceTypes) {
-    final var b = new FilterExpressionBuilder();
-
-    final var sourceIdOp = buildOrChain(b, "source_id", sourceIds, id -> id.toString());
-    final var sourceTypeOp = buildOrChain(b, "source_type", sourceTypes, st -> st.name());
-
-    if (sourceIdOp != null && sourceTypeOp != null) {
-      return b.and(b.group(sourceIdOp), b.group(sourceTypeOp)).build();
-    }
-    if (sourceIdOp != null) {
-      return sourceIdOp.build();
-    }
-    return sourceTypeOp != null ? sourceTypeOp.build() : null;
-  }
-
-  private <T> FilterExpressionBuilder.Op buildOrChain(
-      final FilterExpressionBuilder b,
-      final String field,
-      final List<T> values,
-      final Function<T, String> mapper) {
-    if (values == null || values.isEmpty()) {
-      return null;
-    }
-    if (values.size() == 1) {
-      return b.eq(field, mapper.apply(values.getFirst()));
-    }
-    final var ops = values.stream().map(v -> b.eq(field, mapper.apply(v))).toList();
-    var combined = ops.getFirst();
-    for (var i = 1; i < ops.size(); i++) {
-      combined = b.or(combined, ops.get(i));
-    }
-    return combined;
   }
 }

@@ -45,6 +45,13 @@ localloom:
       user's knowledge base. Use the provided context to answer accurately.
       Always cite your sources with the source title and timestamp or section.
       If you don't have enough context to answer, say so.
+    rag-system-prompt: >-
+      Answer using ONLY the provided context. If the context does not contain
+      enough information to answer the question, say "I don't have enough
+      information to answer that." Cite sources as [Episode: title, timestamp]
+      for podcasts or [Source: title, location] for other content types.
+      Do not make up information.
+    top-k: 5
   sidecar:
     url: http://localhost:8100
   audio:
