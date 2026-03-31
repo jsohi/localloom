@@ -7,6 +7,8 @@ import type {
   CreateSourceResponse,
   SyncSourceResponse,
   SourceDetailResponse,
+  LlmHealthResponse,
+  ModelInfo,
 } from './types';
 
 const API_BASE = '/api/v1';
@@ -181,4 +183,14 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
     });
 
   return controller;
+}
+
+// Models / Health
+
+export function getLlmHealth(): Promise<LlmHealthResponse> {
+  return fetchApi<LlmHealthResponse>('/models/llm/health');
+}
+
+export function getModels(): Promise<ModelInfo[]> {
+  return fetchApi<ModelInfo[]>('/models/llm');
 }
