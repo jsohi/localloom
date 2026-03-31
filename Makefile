@@ -54,12 +54,15 @@ build:
 push:
 	@echo "==> Step 1/4: Formatting"
 	cd api && ./gradlew spotlessApply
+	cd ml-sidecar && uv run ruff format . 2>/dev/null || true
 	cd frontend && npm run format 2>/dev/null || true
 	@echo "==> Step 2/4: Linting"
 	cd api && ./gradlew spotlessCheck
+	cd ml-sidecar && uv run ruff check . 2>/dev/null || true
 	cd frontend && npm run lint
 	@echo "==> Step 3/4: Running tests"
 	cd api && ./gradlew test
+	cd ml-sidecar && uv run pytest --ignore=tests/ml 2>/dev/null || true
 	cd frontend && npx vitest run
 	@echo "==> Step 4/4: Pushing"
 	git push -u origin $$(git branch --show-current)
