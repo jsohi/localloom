@@ -118,7 +118,7 @@ export function SourceCard({ source, onDeleted }: SourceCardProps) {
           {source.syncStatus}
         </Badge>
         {source.lastSyncedAt && (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-xs" suppressHydrationWarning>
             Synced {new Date(source.lastSyncedAt).toLocaleDateString()}
           </span>
         )}

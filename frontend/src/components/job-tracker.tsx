@@ -31,22 +31,32 @@ export function JobTracker({ refreshKey }: JobTrackerProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     async function fetchJobs() {
       try {
         const allJobs = await getJobs();
+        if (!isMounted) return;
         const activeJobs = allJobs.filter(
           (j) => j.status === 'PENDING' || j.status === 'RUNNING',
         );
         setJobs(activeJobs);
       } catch {
         // Silently ignore polling errors
+      } finally {
+        if (isMounted) {
+          timeoutId = setTimeout(fetchJobs, 5000);
+        }
       }
     }
 
     fetchJobs();
-    const intervalId = setInterval(fetchJobs, 5000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [refreshKey]);
 
   if (jobs.length === 0) return null;
