@@ -81,13 +81,13 @@ describe('AudioPlayer', () => {
     render(<AudioPlayer audioUrl="/api/v1/audio/bad.wav" />);
 
     // Find and invoke the error handler registered via addEventListener
+    expect(lastMockAudio.addEventListener).toHaveBeenCalledWith('error', expect.any(Function));
     const errorCall = lastMockAudio.addEventListener.mock.calls.find(
-      ([event]: [string]) => event === 'error',
+      (call: unknown[]) => call[0] === 'error',
     );
-    expect(errorCall).toBeDefined();
+    if (!errorCall) return;
 
-    // Simulate error event inside act to flush state updates
-    const errorHandler = errorCall![1] as () => void;
+    const errorHandler = errorCall[1] as () => void;
     act(() => {
       errorHandler();
     });
