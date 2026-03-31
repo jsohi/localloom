@@ -77,7 +77,9 @@ public class QueryService {
                 sendEvent(
                     emitter,
                     "done",
-                    new DonePayload(conversation.getMessages().getLast().getId().toString()));
+                    new DonePayload(
+                        conversation.getMessages().getLast().getId().toString(),
+                        conversation.getId().toString()));
 
                 emitter.complete();
               })
@@ -179,7 +181,7 @@ public class QueryService {
 
   public record SourcesPayload(List<Citation> sources) {}
 
-  public record DonePayload(String messageId) {}
+  public record DonePayload(String messageId, String conversationId) {}
 
   public record QueryResult(
       String answer, List<Citation> citations, UUID conversationId, UUID messageId) {}
