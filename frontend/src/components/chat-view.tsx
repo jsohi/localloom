@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessage } from '@/components/chat-message';
 import { ChatInput } from '@/components/chat-input';
 import { CitationPanel } from '@/components/citation-panel';
-import { streamQuery, type Citation } from '@/lib/api';
+import { getConversation, streamQuery, type Citation } from '@/lib/api';
 
 interface ChatMessageData {
   id: string;
@@ -25,6 +25,20 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
   const [citations, setCitations] = useState<Citation[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load existing messages when mounting with a conversationId
+  useEffect(() => {
+    if (!conversationId) return;
+    getConversation(conversationId)
+      .then((conv) => {
+        setMessages(
+          conv.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })),
+        );
+      })
+      .catch(() => {
+        // Conversation may have been deleted
+      });
+  }, [conversationId]);
 
   // Abort any active stream on unmount
   useEffect(() => {

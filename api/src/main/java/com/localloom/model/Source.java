@@ -1,5 +1,6 @@
 package com.localloom.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -56,6 +57,7 @@ public class Source {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
+  @JsonIgnore
   @OneToMany(mappedBy = "source", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ContentUnit> contentUnits = new ArrayList<>();
 
