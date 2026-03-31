@@ -36,7 +36,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         placeholder="Ask a question about your knowledge base..."
         disabled={disabled}
         rows={1}
-        className="bg-muted flex-1 resize-none rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="bg-muted focus:ring-ring flex-1 resize-none rounded-lg px-4 py-3 text-sm focus:ring-2 focus:outline-none"
       />
       <Button type="submit" size="icon" disabled={disabled || !input.trim()}>
         <SendIcon className="size-4" />

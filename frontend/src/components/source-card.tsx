@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { MicIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -27,7 +28,9 @@ interface SourceCardProps {
   readonly onDeleted: () => void;
 }
 
-function syncStatusVariant(status: SyncStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function syncStatusVariant(
+  status: SyncStatus,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
     case 'IDLE':
       return 'secondary';
@@ -59,16 +62,19 @@ export function SourceCard({ source, onDeleted }: SourceCardProps) {
   }
 
   return (
-    <Card className="group relative transition-colors hover:border-foreground/20">
+    <Card className="group hover:border-foreground/20 relative transition-colors">
       <Link href={`/library/${source.id}`} className="absolute inset-0 z-0" />
 
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <div className="flex items-center gap-3">
           {source.iconUrl ? (
-            <img
+            <Image
               src={source.iconUrl}
               alt={source.name}
+              width={40}
+              height={40}
               className="size-10 rounded-md object-cover"
+              unoptimized
             />
           ) : (
             <div className="bg-muted flex size-10 items-center justify-center rounded-md">
@@ -114,9 +120,7 @@ export function SourceCard({ source, onDeleted }: SourceCardProps) {
       </CardHeader>
 
       <CardContent className="flex items-center gap-2">
-        <Badge variant={syncStatusVariant(source.syncStatus)}>
-          {source.syncStatus}
-        </Badge>
+        <Badge variant={syncStatusVariant(source.syncStatus)}>{source.syncStatus}</Badge>
         {source.lastSyncedAt && (
           <span className="text-muted-foreground text-xs" suppressHydrationWarning>
             Synced {new Date(source.lastSyncedAt).toLocaleDateString()}

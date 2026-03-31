@@ -29,7 +29,9 @@ describe('SettingsView', () => {
     mockGetSources.mockReturnValue(new Promise(() => {}));
 
     const { container } = render(<SettingsView />);
-    const skeletons = container.querySelectorAll('[class*="animate-pulse"], [data-slot="skeleton"]');
+    const skeletons = container.querySelectorAll(
+      '[class*="animate-pulse"], [data-slot="skeleton"]',
+    );
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
@@ -94,7 +96,12 @@ describe('SettingsView', () => {
         syncStatus: 'SYNCING',
         createdAt: '2025-01-01T00:00:00Z',
         contentUnits: [
-          { id: 'cu3', contentType: 'TEXT_FILE', status: 'PENDING', createdAt: '2025-01-01T00:00:00Z' },
+          {
+            id: 'cu3',
+            contentType: 'TEXT_FILE',
+            status: 'PENDING',
+            createdAt: '2025-01-01T00:00:00Z',
+          },
         ],
       },
     ] as never);

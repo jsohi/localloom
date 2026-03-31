@@ -14,10 +14,7 @@ import type {
 
 const API_BASE = '/api/v1';
 
-export async function fetchApi<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
+export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
   const response = await fetch(url, {
     headers: {
@@ -177,7 +174,8 @@ export function streamQuery(opts: StreamQueryOptions): AbortController {
               const parsed = JSON.parse(data);
               if (currentEvent === 'token') opts.onToken(parsed.content);
               else if (currentEvent === 'sources') opts.onSources(parsed.sources ?? []);
-              else if (currentEvent === 'done') opts.onDone(parsed.messageId, parsed.conversationId);
+              else if (currentEvent === 'done')
+                opts.onDone(parsed.messageId, parsed.conversationId);
             } catch {
               // Skip malformed data
             }

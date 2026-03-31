@@ -120,11 +120,11 @@ public class SourceController {
   public Map<String, Object> getSource(@PathVariable final UUID id) {
     final var source =
         sourceRepository
-            .findById(id)
+            .findWithContentUnitsById(id)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Source not found: " + id));
 
-    return Map.of("source", source, "contentUnits", contentUnitRepository.findBySourceId(id));
+    return Map.of("source", source, "contentUnits", source.getContentUnits());
   }
 
   @Transactional

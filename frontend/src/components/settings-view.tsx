@@ -1,13 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  ActivityIcon,
-  BrainIcon,
-  DatabaseIcon,
-  DownloadIcon,
-  RefreshCwIcon,
-} from 'lucide-react';
+import { ActivityIcon, BrainIcon, DatabaseIcon, DownloadIcon, RefreshCwIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,7 +124,9 @@ export function SettingsView() {
               Unable to load models. Check that Ollama is running.
             </p>
           ) : models.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No models found. Pull a model in Ollama to get started.</p>
+            <p className="text-muted-foreground text-sm">
+              No models found. Pull a model in Ollama to get started.
+            </p>
           ) : (
             <div className="space-y-3">
               {models.map((model) => (

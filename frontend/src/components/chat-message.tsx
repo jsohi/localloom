@@ -51,7 +51,7 @@ export function ChatMessage({ id, role, content, isStreaming }: ChatMessageProps
           isUser ? 'bg-primary text-primary-foreground' : 'bg-muted',
         )}
       >
-        <p className="whitespace-pre-wrap text-sm">{content}</p>
+        <p className="text-sm whitespace-pre-wrap">{content}</p>
         {isStreaming && (
           <span className="mt-1 inline-block size-2 animate-pulse rounded-full bg-current" />
         )}

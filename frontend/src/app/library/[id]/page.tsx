@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeftIcon, MicIcon } from 'lucide-react';
@@ -15,7 +16,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getSource } from '@/lib/api';
 import type { ContentUnit, Source, SyncStatus } from '@/lib/types';
 
-function syncStatusVariant(status: SyncStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function syncStatusVariant(
+  status: SyncStatus,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
     case 'IDLE':
       return 'secondary';
@@ -95,10 +98,13 @@ export default function SourceDetailPage() {
           <>
             <div className="flex items-start gap-4">
               {source.iconUrl ? (
-                <img
+                <Image
                   src={source.iconUrl}
                   alt={source.name}
+                  width={64}
+                  height={64}
                   className="size-16 rounded-lg object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="bg-muted flex size-16 items-center justify-center rounded-lg">
@@ -111,9 +117,7 @@ export default function SourceDetailPage() {
                   <p className="text-muted-foreground text-sm">{source.description}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Badge variant={syncStatusVariant(source.syncStatus)}>
-                    {source.syncStatus}
-                  </Badge>
+                  <Badge variant={syncStatusVariant(source.syncStatus)}>{source.syncStatus}</Badge>
                   <span className="text-muted-foreground text-sm">
                     {contentUnits.length} {contentUnits.length === 1 ? 'episode' : 'episodes'}
                   </span>

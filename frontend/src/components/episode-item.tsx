@@ -13,7 +13,9 @@ interface EpisodeItemProps {
   readonly episode: ContentUnit;
 }
 
-function statusVariant(status: ContentUnitStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function statusVariant(
+  status: ContentUnitStatus,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
     case 'INDEXED':
       return 'default';
@@ -54,7 +56,7 @@ export function EpisodeItem({ episode }: EpisodeItemProps) {
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50 transition-colors"
+        className="hover:bg-muted/50 flex w-full items-center gap-3 p-4 text-left transition-colors"
         aria-expanded={expanded}
       >
         {expanded ? (
@@ -63,9 +65,7 @@ export function EpisodeItem({ episode }: EpisodeItemProps) {
           <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-sm">
-            {episode.title ?? 'Untitled episode'}
-          </p>
+          <p className="truncate text-sm font-medium">{episode.title ?? 'Untitled episode'}</p>
           {episode.publishedAt && (
             <p className="text-muted-foreground text-xs" suppressHydrationWarning>
               {new Date(episode.publishedAt).toLocaleDateString()}
@@ -76,7 +76,7 @@ export function EpisodeItem({ episode }: EpisodeItemProps) {
       </button>
 
       {expanded && (
-        <div className="border-t px-4 pb-4 pt-3">
+        <div className="border-t px-4 pt-3 pb-4">
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />

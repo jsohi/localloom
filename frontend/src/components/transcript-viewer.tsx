@@ -36,7 +36,7 @@ function highlightText(text: string, regex: RegExp | null): React.ReactNode[] {
   const parts = text.split(regex);
   return parts.map((part, i) =>
     regex.test(part) ? (
-      <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded-sm px-0.5">
+      <mark key={i} className="rounded-sm bg-yellow-200 px-0.5 dark:bg-yellow-800">
         {part}
       </mark>
     ) : (
@@ -67,16 +67,14 @@ export function TranscriptViewer({ fragments, rawText }: TranscriptViewerProps) 
 
   if (!hasFragments && !rawText) {
     return (
-      <p className="text-muted-foreground py-4 text-center text-sm">
-        No transcript available.
-      </p>
+      <p className="text-muted-foreground py-4 text-center text-sm">No transcript available.</p>
     );
   }
 
   return (
     <div className="space-y-3">
       <div className="relative">
-        <SearchIcon className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+        <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
           placeholder="Search transcript..."
           value={search}
@@ -85,7 +83,7 @@ export function TranscriptViewer({ fragments, rawText }: TranscriptViewerProps) 
           aria-label="Search transcript"
         />
         {search && (
-          <span className="text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 text-xs">
+          <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-xs">
             {matchCount} {matchCount === 1 ? 'match' : 'matches'}
           </span>
         )}
@@ -109,7 +107,7 @@ export function TranscriptViewer({ fragments, rawText }: TranscriptViewerProps) 
             })}
           </div>
         ) : (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
             {highlightText(rawText ?? '', searchRegex)}
           </p>
         )}
