@@ -56,10 +56,14 @@ public class ConversationController {
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteConversation(@PathVariable final UUID id) {
-    if (!conversationRepository.existsById(id)) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found: " + id);
-    }
-    conversationRepository.deleteById(id);
+    var conversation =
+        conversationRepository
+            .findById(id)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Conversation not found: " + id));
+    conversationRepository.delete(conversation);
     log.info("Deleted conversation: {}", id);
     return ResponseEntity.noContent().build();
   }

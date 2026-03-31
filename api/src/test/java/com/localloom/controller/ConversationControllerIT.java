@@ -149,4 +149,21 @@ class ConversationControllerIT {
     var updated = conversationRepository.findById(conversation.getId()).orElseThrow();
     assertThat(updated.getTitle()).isEqualTo("Updated Title");
   }
+
+  @Test
+  void updateTitleRejectsBlanks() throws Exception {
+    var conversation = new Conversation();
+    conversation.setTitle("Original");
+    conversation = conversationRepository.save(conversation);
+
+    mockMvc
+        .perform(
+            patch("/api/v1/conversations/" + conversation.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"title": "  "}
+                    """))
+        .andExpect(status().isBadRequest());
+  }
 }
