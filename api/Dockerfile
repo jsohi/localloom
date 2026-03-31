@@ -13,20 +13,20 @@ RUN ./gradlew dependencies --no-daemon
 
 # Source layer (changes frequently)
 COPY src src
-RUN ./gradlew bootJar --parallel -x test --no-daemon && \
-    cp build/libs/*-SNAPSHOT.jar build/libs/app.jar
+RUN ./gradlew bootJar --parallel -x test --no-daemon
 
 # ── Stage 2: Runtime ────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jre
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3 python3-pip curl && \
-    pip install --break-system-packages yt-dlp && \
+    apt-get install -y --no-install-recommends ffmpeg python3 curl && \
+    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY --from=build /workspace/build/libs/app.jar app.jar
+COPY --from=build /workspace/build/libs/localloom-api-*.jar app.jar
 
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     mkdir -p /app/data/audio && chown -R appuser:appuser /app
