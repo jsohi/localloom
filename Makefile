@@ -62,7 +62,7 @@ push:
 	cd api && ./gradlew test
 	cd frontend && npx vitest run
 	@echo "==> Step 4/4: Pushing"
-	git push
+	git push -u origin $$(git branch --show-current)
 	@echo "==> Push complete."
 
 # ── Clean ────────────────────────────────────────────────────────────────────
