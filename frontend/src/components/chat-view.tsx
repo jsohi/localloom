@@ -104,7 +104,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
             </div>
           )}
           {messages.map((msg) => (
-            <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+            <ChatMessage key={msg.id} id={msg.id} role={msg.role} content={msg.content} />
           ))}
           {isStreaming && streamingContent && (
             <ChatMessage role="ASSISTANT" content={streamingContent} isStreaming />
