@@ -67,11 +67,11 @@ Keep the summary line under 72 characters. Use the body for additional context w
 
 ```bash
 # API (unit + integration)
-./gradlew test
+cd api && ./gradlew test
 
 # Frontend
-cd frontend && npm test
+cd frontend && npx vitest run
 
 # Python sidecar
-cd ml-sidecar && uv sync && ruff check .
+cd ml-sidecar && uv run pytest --ignore=tests/ml
 ```
