@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     model_dir: str = "data/models"
     whisper_model: str = "large-v3-turbo"
-    tts_voice: str = "en_US-amy-medium"
+    tts_voice: str = "en_US-lessac-medium"
     tts_output_dir: str = "data/tts_output"
     host: str = "0.0.0.0"
     port: int = 8100

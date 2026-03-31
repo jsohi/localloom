@@ -6,7 +6,7 @@ def test_default_settings():
     assert s.port == 8100
     assert s.whisper_model == "large-v3-turbo"
     assert s.model_dir == "data/models"
-    assert s.tts_voice == "en_US-amy-medium"
+    assert s.tts_voice == "en_US-lessac-medium"
 
 
 def test_env_override(monkeypatch):

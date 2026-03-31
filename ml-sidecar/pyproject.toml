@@ -9,6 +9,7 @@ dependencies = [
     "pydantic-settings",
     "python-multipart",
     "faster-whisper",
+    "piper-tts",
 ]
 
 [project.optional-dependencies]
