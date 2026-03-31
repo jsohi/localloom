@@ -49,7 +49,7 @@ services:
       # Mac: host.docker.internal works out of the box.
       # Linux: use 172.17.0.1 or add --add-host=host.docker.internal:host-gateway
       SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
-      CHROMA_HOST: http://chromadb
+      CHROMA_HOST: chromadb
       CHROMA_PORT: "8000"
       LOCALLOOM_SIDECAR_URL: http://ml-sidecar:8100
       LOCALLOOM_AUDIO_DIR: /app/data/audio

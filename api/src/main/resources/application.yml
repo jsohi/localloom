@@ -35,7 +35,7 @@ spring:
       chroma:
         initialize-schema: true
         client:
-          host: ${CHROMA_HOST:http://localhost}
+          host: ${CHROMA_HOST:localhost}
           port: ${CHROMA_PORT:8000}
 
 logging:

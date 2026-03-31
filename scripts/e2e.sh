@@ -12,7 +12,8 @@ cleanup() {
   docker compose $COMPOSE_FILES down 2>/dev/null || true
   if [[ "$OLLAMA_STARTED_BY_SCRIPT" == true && -n "${OLLAMA_PID:-}" ]]; then
     echo "    Stopping Ollama (PID $OLLAMA_PID)..."
-    kill "$OLLAMA_PID" 2>/dev/null || true
+    kill -TERM "$OLLAMA_PID" 2>/dev/null && sleep 2
+    kill -9 "$OLLAMA_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -73,7 +74,7 @@ echo "    All services healthy"
 # ── Frontend dependencies ───────────────────────────────────────────────────
 echo "==> Installing frontend dependencies..."
 cd "$REPO_ROOT/frontend"
-npm ci --silent 2>/dev/null || npm install --silent
+npm ci || { echo "ERROR: npm ci failed. Check package-lock.json"; exit 1; }
 
 echo "==> Ensuring Playwright browsers are installed..."
 npx playwright install chromium
