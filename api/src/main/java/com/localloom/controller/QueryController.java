@@ -1,6 +1,7 @@
 package com.localloom.controller;
 
 import com.localloom.controller.dto.QueryRequest;
+import com.localloom.repository.ConversationRepository;
 import com.localloom.service.QueryService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,15 +22,24 @@ public class QueryController {
   private static final long SSE_TIMEOUT_MS = 120_000L;
 
   private final QueryService queryService;
+  private final ConversationRepository conversationRepository;
 
-  public QueryController(final QueryService queryService) {
+  public QueryController(
+      final QueryService queryService, final ConversationRepository conversationRepository) {
     this.queryService = queryService;
+    this.conversationRepository = conversationRepository;
   }
 
   @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter query(@RequestBody final QueryRequest request) {
     if (request.question() == null || request.question().isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "question is required");
+    }
+
+    if (request.conversationId() != null
+        && !conversationRepository.existsById(request.conversationId())) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "Conversation not found: " + request.conversationId());
     }
 
     log.info(
