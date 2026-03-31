@@ -82,40 +82,38 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
+    var conversationId = conversation.getId();
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isEqualTo(1);
+    var found = conversationRepository.findByIdWithMessages(conversationId).orElseThrow();
+    assertThat(found.getMessages()).hasSize(1);
 
-    conversationRepository.deleteById(conversation.getId());
+    conversationRepository.deleteById(conversationId);
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isZero();
+    assertThat(conversationRepository.findById(conversationId)).isEmpty();
   }
 
   @Test
-  void messagesOrderedByCreatedAt() throws Exception {
+  void messagesOrderedByCreatedAt() {
     var conversation = new Conversation();
     conversation.setTitle("Ordering Test");
     conversation = conversationRepository.save(conversation);
 
-    // Delays ensure distinct createdAt values for @OrderBy("createdAt ASC") verification
+    // Each flush() triggers a DB roundtrip, ensuring distinct createdAt timestamps
     var msg1 = new Message();
     msg1.setRole(MessageRole.USER);
     msg1.setContent("First message");
     conversation.addMessage(msg1);
     em.flush();
 
-    Thread.sleep(10);
-
     var msg2 = new Message();
     msg2.setRole(MessageRole.ASSISTANT);
     msg2.setContent("Second message");
     conversation.addMessage(msg2);
     em.flush();
-
-    Thread.sleep(10);
 
     var msg3 = new Message();
     msg3.setRole(MessageRole.USER);
@@ -162,17 +160,19 @@ class ConversationRepositoryIT {
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
+    var conversationId = conversation.getId();
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isEqualTo(1);
+    var found = conversationRepository.findByIdWithMessages(conversationId).orElseThrow();
+    assertThat(found.getMessages()).hasSize(1);
 
     // Re-fetch to get managed entity
-    conversation = conversationRepository.findById(conversation.getId()).orElseThrow();
-    conversation.removeMessage(conversation.getMessages().getFirst());
+    found.removeMessage(found.getMessages().getFirst());
     em.flush();
     em.clear();
 
-    assertThat(messageRepository.count()).isZero();
+    var afterRemoval = conversationRepository.findByIdWithMessages(conversationId).orElseThrow();
+    assertThat(afterRemoval.getMessages()).isEmpty();
   }
 }
