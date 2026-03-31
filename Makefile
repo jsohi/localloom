@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test build push docker-build docker-up docker-down docker-logs clean
+.PHONY: setup dev lint format test e2e build push docker-build docker-up docker-down docker-logs clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -38,6 +38,11 @@ test:
 	cd ml-sidecar && uv run pytest
 	@echo "==> Running frontend tests"
 	cd frontend && npm test
+
+# ── E2E ──────────────────────────────────────────────────────────────────────
+## e2e: Run E2E tests with Playwright (requires Docker + Ollama running).
+e2e:
+	bash scripts/e2e.sh
 
 # ── Build ────────────────────────────────────────────────────────────────────
 ## build: Build all three projects (skips tests).
