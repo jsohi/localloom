@@ -23,7 +23,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.web.server.ResponseStatusException;
 
 class QueryServiceTest {
 
@@ -92,7 +91,7 @@ class QueryServiceTest {
     when(conversationRepository.findById(conversationId)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> queryService.query("test question", null, null, conversationId))
-        .isInstanceOf(ResponseStatusException.class)
+        .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Conversation not found");
   }
 

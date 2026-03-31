@@ -13,10 +13,8 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
@@ -122,9 +120,7 @@ public class QueryService {
       return conversationRepository
           .findById(conversationId)
           .orElseThrow(
-              () ->
-                  new ResponseStatusException(
-                      HttpStatus.NOT_FOUND, "Conversation not found: " + conversationId));
+              () -> new IllegalArgumentException("Conversation not found: " + conversationId));
     }
     var conversation = new Conversation();
     return conversationRepository.save(conversation);

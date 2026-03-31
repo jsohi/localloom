@@ -42,12 +42,16 @@ public class QueryController {
     emitter.onError(
         ex -> log.warn("SSE connection error for conversationId={}", request.conversationId(), ex));
 
-    queryService.streamQuery(
-        request.question(),
-        request.sourceIds(),
-        request.sourceTypes(),
-        request.conversationId(),
-        emitter);
+    try {
+      queryService.streamQuery(
+          request.question(),
+          request.sourceIds(),
+          request.sourceTypes(),
+          request.conversationId(),
+          emitter);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+    }
 
     return emitter;
   }
