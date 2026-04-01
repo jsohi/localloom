@@ -94,6 +94,9 @@ BASE_URL=http://localhost:13000 API_URL=http://localhost:18080 npx playwright te
 # ── Collect all logs ───────────────────────────────────────────────────────
 source "$REPO_ROOT/scripts/_collect-logs.sh"
 
+# Remove old log dirs (keep only the latest run)
+find "${TMPDIR}" -maxdepth 1 -name "localloom-e2e-logs-*" -type d -exec rm -rf {} + 2>/dev/null || true
+
 LOG_DIR="$TMPDIR/localloom-e2e-logs-$(date +%Y%m%d-%H%M%S)"
 echo ""
 echo "==> Collecting logs..."

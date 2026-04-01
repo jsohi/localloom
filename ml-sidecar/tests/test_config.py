@@ -5,7 +5,7 @@ def test_default_settings():
     s = Settings()
     assert s.port == 8100
     assert s.whisper_model == "large-v3-turbo"
-    assert s.whisper_compute_type == "int8_float16"
+    assert s.whisper_compute_type == "auto"
     assert s.model_dir == "data/models"
     assert s.tts_voice == "en_US-lessac-medium"
 
