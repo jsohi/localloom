@@ -114,8 +114,7 @@ public class MlSidecarClient {
     }
   }
 
-  private static void addRequestId(
-      final org.springframework.web.client.RestClient.RequestHeadersSpec<?> spec) {
+  private static void addRequestId(final RestClient.RequestHeadersSpec<?> spec) {
     final var requestId = ThreadContext.get("requestId");
     if (requestId != null) {
       spec.header("X-Request-Id", requestId);
