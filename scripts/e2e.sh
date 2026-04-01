@@ -89,41 +89,15 @@ TEST_EXIT=0
 npx playwright test "$@" || TEST_EXIT=$?
 
 # ── Collect all logs ───────────────────────────────────────────────────────
-LOG_DIR="$TMPDIR/localloom-e2e-logs-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$LOG_DIR"
+source "$REPO_ROOT/scripts/_collect-logs.sh"
 
+LOG_DIR="$TMPDIR/localloom-e2e-logs-$(date +%Y%m%d-%H%M%S)"
 echo ""
 echo "==> Collecting logs..."
+collect_logs "$COMPOSE_FILES" "$LOG_DIR"
 
-# Docker stdout/stderr for all services
-docker compose $COMPOSE_FILES logs --timestamps > "$LOG_DIR/docker-compose.log" 2>&1
-
-# App-level log files from Docker volumes
-docker compose $COMPOSE_FILES cp api:/app/logs/. "$LOG_DIR/api/" 2>/dev/null || true
-docker compose $COMPOSE_FILES cp ml-sidecar:/app/logs/. "$LOG_DIR/ml-sidecar/" 2>/dev/null || true
-
-# Playwright results
 if [ -d "$REPO_ROOT/frontend/e2e-results" ]; then
   cp -r "$REPO_ROOT/frontend/e2e-results" "$LOG_DIR/playwright/"
 fi
-
-FILE_COUNT=$(find "$LOG_DIR" -type f | wc -l | tr -d ' ')
-TOTAL_SIZE=$(du -sh "$LOG_DIR" | cut -f1)
-
-echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  E2E Logs ($FILE_COUNT files, $TOTAL_SIZE)"
-printf "║  %-60s║\n" "$LOG_DIR"
-echo "╠══════════════════════════════════════════════════════════════╣"
-echo "║  docker-compose.log    All service stdout/stderr            ║"
-echo "║  api/api.log           Spring Boot application log          ║"
-echo "║  ml-sidecar/*.log      Python sidecar application log       ║"
-echo "║  playwright/           Test results, traces, screenshots    ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
-echo ""
-echo "  Quick commands:"
-echo "    grep 'ERROR' $LOG_DIR/**/*.log"
-echo "    grep '<request-id>' $LOG_DIR/**/*.log"
-echo ""
 
 exit $TEST_EXIT

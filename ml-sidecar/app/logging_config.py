@@ -1,3 +1,4 @@
+import atexit
 import logging
 import logging.config
 import logging.handlers
@@ -9,6 +10,10 @@ from datetime import datetime, timezone
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
 LOG_DIR = os.environ.get("LOG_DIR", "logs")
+
+# Python uses WARNING (7 chars) but Java uses WARN (4 chars).
+# Override so cross-service log format aligns on 5-char columns.
+logging.addLevelName(logging.WARNING, "WARN")
 
 
 class RequestIdFilter(logging.Filter):
@@ -82,25 +87,21 @@ def configure_logging() -> None:
 
     logging.config.dictConfig(config)
 
-    # Wrap the file handler in a QueueHandler so disk I/O doesn't block the event loop
-    file_handler = _find_file_handler()
+    # Offload file writes to a background thread so disk I/O doesn't block the event loop
+    file_handler = next(
+        (h for h in logging.getLogger("app").handlers if isinstance(h, logging.handlers.RotatingFileHandler)),
+        None,
+    )
     if file_handler is not None:
-        log_queue: queue.Queue[logging.LogRecord] = queue.Queue(-1)
+        log_queue: queue.Queue[logging.LogRecord] = queue.Queue(10_000)
         queue_handler = logging.handlers.QueueHandler(log_queue)
-        queue_handler.addFilter(RequestIdFilter())
-        listener = logging.handlers.QueueListener(log_queue, file_handler, respect_handler_level=True)
+        listener = logging.handlers.QueueListener(
+            log_queue, file_handler, respect_handler_level=True
+        )
         listener.start()
+        atexit.register(listener.stop)
 
         for logger_name in ("app", "uvicorn", "uvicorn.access", ""):
             lgr = logging.getLogger(logger_name)
             lgr.removeHandler(file_handler)
             lgr.addHandler(queue_handler)
-
-
-def _find_file_handler() -> logging.handlers.RotatingFileHandler | None:
-    """Find the RotatingFileHandler across all loggers."""
-    for lgr_name in ("app", "uvicorn", "uvicorn.access", ""):
-        for handler in logging.getLogger(lgr_name).handlers:
-            if isinstance(handler, logging.handlers.RotatingFileHandler):
-                return handler
-    return None
