@@ -1,6 +1,8 @@
 import logging
 import logging.config
+import logging.handlers
 import os
+import queue
 from contextvars import ContextVar
 from datetime import datetime, timezone
 
@@ -16,7 +18,7 @@ class RequestIdFilter(logging.Filter):
 
 
 class UtcMillisFormatter(logging.Formatter):
-    """Formats timestamps as ISO-8601 with milliseconds in UTC."""
+    """Match the Java API's Log4j2 ISO-8601 UTC format for cross-service log correlation."""
 
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
@@ -79,3 +81,26 @@ def configure_logging() -> None:
     }
 
     logging.config.dictConfig(config)
+
+    # Wrap the file handler in a QueueHandler so disk I/O doesn't block the event loop
+    file_handler = _find_file_handler()
+    if file_handler is not None:
+        log_queue: queue.Queue[logging.LogRecord] = queue.Queue(-1)
+        queue_handler = logging.handlers.QueueHandler(log_queue)
+        queue_handler.addFilter(RequestIdFilter())
+        listener = logging.handlers.QueueListener(log_queue, file_handler, respect_handler_level=True)
+        listener.start()
+
+        for logger_name in ("app", "uvicorn", "uvicorn.access", ""):
+            lgr = logging.getLogger(logger_name)
+            lgr.removeHandler(file_handler)
+            lgr.addHandler(queue_handler)
+
+
+def _find_file_handler() -> logging.handlers.RotatingFileHandler | None:
+    """Find the RotatingFileHandler across all loggers."""
+    for lgr_name in ("app", "uvicorn", "uvicorn.access", ""):
+        for handler in logging.getLogger(lgr_name).handlers:
+            if isinstance(handler, logging.handlers.RotatingFileHandler):
+                return handler
+    return None

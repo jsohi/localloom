@@ -6,6 +6,7 @@ import { ChatMessage } from '@/components/chat-message';
 import { ChatInput } from '@/components/chat-input';
 import { CitationPanel } from '@/components/citation-panel';
 import { getConversation, streamQuery, type Citation } from '@/lib/api';
+import { logger } from '@/lib/logger';
 
 interface ChatMessageData {
   id: string;
@@ -39,7 +40,7 @@ export function ChatView({ conversationId, onConversationCreated }: ChatViewProp
       })
       .catch((err) => {
         if (err instanceof Error && err.message.includes('404')) return;
-        console.error('Failed to load conversation:', err);
+        logger.error('Failed to load conversation:', err);
       })
       .finally(() => {
         if (!ignore) setLoadingHistory(false);

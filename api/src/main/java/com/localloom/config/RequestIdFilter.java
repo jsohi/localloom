@@ -19,8 +19,8 @@ import org.springframework.stereotype.Component;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestIdFilter implements Filter {
 
-  private static final String HEADER = "X-Request-Id";
-  private static final String MDC_KEY = "requestId";
+  public static final String HEADER = "X-Request-Id";
+  public static final String MDC_KEY = "requestId";
   private static final Pattern VALID_ID = Pattern.compile("[a-zA-Z0-9\\-]+");
 
   @Override

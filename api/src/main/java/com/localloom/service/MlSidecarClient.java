@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.ThreadContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
@@ -40,14 +39,14 @@ public class MlSidecarClient {
     body.add("file", new FileSystemResource(audioFile));
 
     try {
-      final var spec =
+      final var response =
           restClient
               .post()
               .uri("/transcribe")
               .contentType(MediaType.MULTIPART_FORM_DATA)
-              .body(body);
-      addRequestId(spec);
-      final var response = spec.retrieve().body(Map.class);
+              .body(body)
+              .retrieve()
+              .body(Map.class);
 
       if (response == null) {
         throw new MlSidecarException(
@@ -80,14 +79,14 @@ public class MlSidecarClient {
     log.info("Requesting TTS synthesis, voice={}, textLength={}", voice, text.length());
 
     try {
-      final var spec =
+      final var audio =
           restClient
               .post()
               .uri("/tts")
               .contentType(MediaType.APPLICATION_JSON)
-              .body(Map.of("text", text, "voice", voice));
-      addRequestId(spec);
-      final var audio = spec.retrieve().body(byte[].class);
+              .body(Map.of("text", text, "voice", voice))
+              .retrieve()
+              .body(byte[].class);
 
       if (audio == null || audio.length == 0) {
         throw new MlSidecarException("Empty TTS response from sidecar for voice: " + voice);
@@ -103,21 +102,12 @@ public class MlSidecarClient {
 
   public boolean isHealthy() {
     try {
-      final var spec = restClient.get().uri("/health");
-      addRequestId(spec);
-      spec.retrieve().toBodilessEntity();
+      restClient.get().uri("/health").retrieve().toBodilessEntity();
       log.debug("ML sidecar health check: OK");
       return true;
     } catch (RestClientException e) {
       log.warn("ML sidecar health check failed: {}", e.getMessage());
       return false;
-    }
-  }
-
-  private static void addRequestId(final RestClient.RequestHeadersSpec<?> spec) {
-    final var requestId = ThreadContext.get("requestId");
-    if (requestId != null) {
-      spec.header("X-Request-Id", requestId);
     }
   }
 

@@ -26,7 +26,9 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
   });
 
   if (!response.ok) {
-    logger.error(`API ${options?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`);
+    logger.error(
+      `API ${options?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`,
+    );
     throw new Error(`API error ${response.status}: ${response.statusText}`);
   }
 
