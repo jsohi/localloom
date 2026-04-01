@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>LocalLoom Test Podcast</title>
+    <description>A test podcast for E2E testing</description>
+    <link>http://test-fixtures</link>
+    <itunes:image href="http://test-fixtures/artwork.png"/>
+    <item>
+      <title>Test Episode One</title>
+      <description>A short test episode for automated testing</description>
+      <enclosure url="http://test-fixtures/test-episode.wav" length="320044" type="audio/wav"/>
+      <pubDate>Mon, 01 Jan 2026 00:00:00 GMT</pubDate>
+      <itunes:duration>10</itunes:duration>
+    </item>
+  </channel>
+</rss>

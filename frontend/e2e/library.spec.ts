@@ -1,49 +1,28 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('Library', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/api/v1/sources', (route) => {
-      if (route.request().method() === 'GET') {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-      }
-      // POST — mock the create source response
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: 'src-1', job_id: 'job-1' }),
-      });
-    });
-    await page.route('**/api/v1/jobs', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
-    );
-  });
-
   test('library page loads', async ({ page }) => {
     await page.goto('/library');
 
-    await expect(page.getByRole('heading', { name: 'Podcast Library' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible();
   });
 
-  test('import dialog opens and submits', async ({ page }) => {
+  test('import dialog opens and can be filled', async ({ page }) => {
     await page.goto('/library');
 
-    // Click the "Import Podcast" button to open the dialog
-    await page.getByRole('button', { name: 'Import Podcast' }).first().click();
-
-    // Verify the dialog is visible
+    await page.getByRole('button', { name: /Import/ }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    // Fill in the URL field
-    await page.getByLabel('URL').fill('https://example.com/feed.xml');
-
-    // Fill in the Name field (URL auto-populates it, clear first)
+    await page.getByLabel('URL').fill('http://test-fixtures/rss-feed.xml');
     await page.getByLabel('Name').clear();
-    await page.getByLabel('Name').fill('Test Podcast');
+    await page.getByLabel('Name').fill('E2E Test Source');
 
-    // Click Import button inside the dialog
-    await page.getByRole('dialog').getByRole('button', { name: 'Import' }).click();
+    // Verify form fields are populated
+    await expect(page.getByLabel('URL')).toHaveValue('http://test-fixtures/rss-feed.xml');
+    await expect(page.getByLabel('Name')).toHaveValue('E2E Test Source');
 
-    // Dialog should close after successful submission
-    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 5_000 });
+    // Close without submitting (import-pipeline test handles the real import)
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeHidden();
   });
 });

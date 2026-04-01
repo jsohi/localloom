@@ -40,3 +40,15 @@ services:
       timeout: 2s
       retries: 5
       start_period: 10s
+
+  test-fixtures:
+    image: nginx:alpine
+    volumes:
+      - ./test-fixtures/rss-feed.xml:/usr/share/nginx/html/rss-feed.xml:ro
+      - ./test-fixtures/test-episode.wav:/usr/share/nginx/html/test-episode.wav:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/rss-feed.xml"]
+      interval: 3s
+      timeout: 2s
+      retries: 3
+      start_period: 3s
