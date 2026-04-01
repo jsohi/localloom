@@ -8,6 +8,11 @@ spring:
     password: ${DB_PASSWORD:localloom}
     driver-class-name: org.postgresql.Driver
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -42,6 +47,8 @@ logging:
   config: classpath:log4j2-spring.xml
 
 localloom:
+  import:
+    max-episodes: ${MAX_EPISODES:0}  # 0 = unlimited; set to N to cap episodes per source import
   chat:
     system-prompt: >-
       You are LocalLoom, a helpful assistant that answers questions about the
@@ -59,13 +66,15 @@ localloom:
     url: http://localhost:8100
   audio:
     dir: data/audio
+  upload:
+    dir: data/uploads
   connectors:
     podcast:
       enabled: true
     file-upload:
       enabled: true
-    confluence:
-      enabled: false
+    web-page:
+      enabled: true
     teams:
       enabled: false
     github:

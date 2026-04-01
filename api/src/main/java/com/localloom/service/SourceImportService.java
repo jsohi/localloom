@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -43,6 +44,7 @@ public class SourceImportService {
   private final ContentFragmentRepository contentFragmentRepository;
   private final ObjectMapper objectMapper;
   private final TransactionTemplate tx;
+  private final int defaultMaxEpisodes;
 
   public SourceImportService(
       final UrlResolver urlResolver,
@@ -54,7 +56,8 @@ public class SourceImportService {
       final ContentUnitRepository contentUnitRepository,
       final ContentFragmentRepository contentFragmentRepository,
       final ObjectMapper objectMapper,
-      final TransactionTemplate transactionTemplate) {
+      final TransactionTemplate transactionTemplate,
+      @Value("${localloom.import.max-episodes:0}") final int defaultMaxEpisodes) {
     this.urlResolver = urlResolver;
     this.audioService = audioService;
     this.mlSidecarClient = mlSidecarClient;
@@ -65,10 +68,17 @@ public class SourceImportService {
     this.contentFragmentRepository = contentFragmentRepository;
     this.objectMapper = objectMapper;
     this.tx = transactionTemplate;
+    this.defaultMaxEpisodes = defaultMaxEpisodes;
   }
 
   @Async
   public CompletableFuture<Void> importSource(final UUID sourceId, final UUID jobId) {
+    return importSource(sourceId, jobId, null);
+  }
+
+  @Async
+  public CompletableFuture<Void> importSource(
+      final UUID sourceId, final UUID jobId, final Integer maxEpisodes) {
     log.info("Starting import pipeline: sourceId={} jobId={}", sourceId, jobId);
 
     try {
@@ -77,12 +87,45 @@ public class SourceImportService {
               .findById(sourceId)
               .orElseThrow(() -> new IllegalArgumentException("Source not found: " + sourceId));
 
+      return switch (source.getSourceType()) {
+        case PODCAST -> importPodcastSource(source, jobId, maxEpisodes);
+        case FILE_UPLOAD, TEAMS ->
+            CompletableFuture.completedFuture(null); // handled by FileUploadService
+        case WEB_PAGE, GITHUB ->
+            throw new UnsupportedOperationException(
+                "Connector not yet implemented: " + source.getSourceType());
+      };
+
+    } catch (Exception e) {
+      log.error(
+          "Import pipeline failed fatally: sourceId={} jobId={}: {}",
+          sourceId,
+          jobId,
+          e.getMessage(),
+          e);
+      sourceRepository.findById(sourceId).ifPresent(s -> finishSource(s, SyncStatus.ERROR));
+      jobService.failJob(jobId, e.getMessage());
+    }
+
+    return CompletableFuture.completedFuture(null);
+  }
+
+  private CompletableFuture<Void> importPodcastSource(
+      final Source source, final UUID jobId, final Integer maxEpisodes) {
+    final var sourceId = source.getId();
+
+    try {
       log.info("Resolving URL for source '{}': {}", source.getName(), source.getOriginUrl());
       final var resolved = urlResolver.resolve(source.getOriginUrl());
 
       updateSourceMetadata(source, resolved);
 
-      final var episodes = resolved.episodes();
+      final var limit = maxEpisodes != null ? maxEpisodes : defaultMaxEpisodes;
+      var episodes = resolved.episodes();
+      if (limit > 0 && episodes.size() > limit) {
+        log.info("Limiting import to {} of {} episodes for sourceId={}", limit, episodes.size(), sourceId);
+        episodes = episodes.subList(0, limit);
+      }
       if (episodes.isEmpty()) {
         log.warn("No episodes found for sourceId={}", sourceId);
         jobService.completeJob(jobId);
@@ -136,7 +179,7 @@ public class SourceImportService {
 
     } catch (Exception e) {
       log.error(
-          "Import pipeline failed fatally: sourceId={} jobId={}: {}",
+          "Podcast import failed: sourceId={} jobId={}: {}",
           sourceId,
           jobId,
           e.getMessage(),

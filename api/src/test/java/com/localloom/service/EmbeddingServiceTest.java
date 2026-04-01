@@ -63,13 +63,13 @@ class EmbeddingServiceTest {
 
   @Test
   void singleSourceTypeFilter() {
-    var expression = VectorStoreFilters.buildFilterExpression(null, List.of(SourceType.CONFLUENCE));
+    var expression = VectorStoreFilters.buildFilterExpression(null, List.of(SourceType.WEB_PAGE));
     assertThat(expression).isNotNull();
     assertThat(expression.type()).isEqualTo(ExpressionType.EQ);
     var key = (Filter.Key) expression.left();
     assertThat(key.key()).isEqualTo("source_type");
     var value = (Filter.Value) expression.right();
-    assertThat(value.value()).isEqualTo("CONFLUENCE");
+    assertThat(value.value()).isEqualTo("WEB_PAGE");
   }
 
   @Test

@@ -57,11 +57,32 @@ export function createSource(body: {
   name: string;
   originUrl: string;
   config?: string;
+  maxEpisodes?: number;
 }): Promise<CreateSourceResponse> {
   return fetchApi<CreateSourceResponse>('/sources', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export async function uploadFile(
+  file: File,
+  name: string,
+  sourceType: string,
+): Promise<CreateSourceResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('name', name);
+  formData.append('sourceType', sourceType);
+  const response = await fetch(`${API_BASE}/sources/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    logger.error(`Upload failed: ${response.status} ${response.statusText}`);
+    throw new Error(`Upload failed: ${response.status}`);
+  }
+  return response.json() as Promise<CreateSourceResponse>;
 }
 
 export function syncSource(id: string): Promise<SyncSourceResponse> {
@@ -78,7 +99,10 @@ export function deleteSource(id: string): Promise<void> {
 // so 404 is expected. TranscriptViewer falls back to rawText.
 export async function getContentFragments(contentUnitId: string): Promise<ContentFragment[]> {
   try {
-    return await fetchApi<ContentFragment[]>(`/content-units/${contentUnitId}/fragments`);
+    const url = `${API_BASE}/content-units/${contentUnitId}/fragments`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    return (await response.json()) as ContentFragment[];
   } catch {
     return [];
   }

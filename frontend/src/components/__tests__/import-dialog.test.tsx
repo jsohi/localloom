@@ -4,6 +4,14 @@ import { ImportDialog } from '../import-dialog';
 
 vi.mock('@/lib/api', () => ({
   createSource: vi.fn(),
+  uploadFile: vi.fn(),
+  getConnectors: vi.fn().mockResolvedValue([
+    { type: 'PODCAST', name: 'Podcast', enabled: true },
+    { type: 'FILE_UPLOAD', name: 'File Upload', enabled: true },
+    { type: 'WEB_PAGE', name: 'Web Page', enabled: false },
+    { type: 'GITHUB', name: 'GitHub', enabled: false },
+    { type: 'TEAMS', name: 'Teams', enabled: false },
+  ]),
 }));
 
 vi.mock('sonner', () => ({
@@ -31,31 +39,31 @@ describe('ImportDialog', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('shows URL, name, and source type fields', async () => {
+  it('shows source type selector, feed URL, name, and max episodes for podcast', async () => {
     render(<ImportDialog onImported={onImported} />);
     fireEvent.click(screen.getByRole('button', { name: /import source/i }));
 
-    expect(await screen.findByLabelText(/url/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/source type/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/feed url/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/source type/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/max episodes/i)).toBeInTheDocument();
   });
 
   it('submit button is disabled while submitting', async () => {
     const { createSource } = await import('@/lib/api');
     const mockedCreateSource = vi.mocked(createSource);
-    // Never resolve so we stay in submitting state
     mockedCreateSource.mockReturnValue(new Promise(() => {}));
 
     render(<ImportDialog onImported={onImported} />);
     fireEvent.click(screen.getByRole('button', { name: /import source/i }));
 
-    const urlInput = await screen.findByLabelText(/url/i);
+    const urlInput = await screen.findByLabelText(/feed url/i);
     const nameInput = screen.getByLabelText(/name/i);
 
     fireEvent.change(urlInput, { target: { value: 'https://example.com/feed.xml' } });
     fireEvent.change(nameInput, { target: { value: 'Test Podcast' } });
 
-    const submitButton = screen.getByRole('button', { name: /import$/i });
+    const submitButton = screen.getByRole('button', { name: /import podcast/i });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -63,7 +71,7 @@ describe('ImportDialog', () => {
     });
   });
 
-  it('calls createSource on submit', async () => {
+  it('calls createSource on podcast submit', async () => {
     const { createSource } = await import('@/lib/api');
     const mockedCreateSource = vi.mocked(createSource);
     mockedCreateSource.mockResolvedValue({ source_id: 's1', job_id: 'j1' });
@@ -71,19 +79,20 @@ describe('ImportDialog', () => {
     render(<ImportDialog onImported={onImported} />);
     fireEvent.click(screen.getByRole('button', { name: /import source/i }));
 
-    const urlInput = await screen.findByLabelText(/url/i);
+    const urlInput = await screen.findByLabelText(/feed url/i);
     const nameInput = screen.getByLabelText(/name/i);
 
     fireEvent.change(urlInput, { target: { value: 'https://example.com/feed.xml' } });
     fireEvent.change(nameInput, { target: { value: 'Test Podcast' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /import$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /import podcast/i }));
 
     await waitFor(() => {
       expect(mockedCreateSource).toHaveBeenCalledWith({
         sourceType: 'PODCAST',
         name: 'Test Podcast',
         originUrl: 'https://example.com/feed.xml',
+        maxEpisodes: undefined,
       });
     });
   });

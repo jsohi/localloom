@@ -341,7 +341,9 @@ public class AudioService {
   }
 
   private void checkBinary(final String binary) {
-    final var command = List.of(binary, "--version");
+    // ffmpeg uses single-dash `-version` and returns non-zero for `--version`
+    final var versionFlag = binary.equals("ffmpeg") ? "-version" : "--version";
+    final var command = List.of(binary, versionFlag);
     try {
       final var p = new ProcessBuilder(command).redirectErrorStream(true).start();
       final var finished = p.waitFor(10, TimeUnit.SECONDS);
