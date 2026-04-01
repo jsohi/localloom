@@ -1,19 +1,18 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 const API = process.env.API_URL || 'http://localhost:8080';
-const FIXTURE_RSS = 'http://test-fixtures/rss-feed.xml';
-const SOURCE_NAME = 'E2E Test Media';
-const E2E_CHAT_QUERY = 'What content has been indexed?';
+const YOUTUBE_URL = 'https://www.youtube.com/watch?v=e2e_test_video';
+const SOURCE_NAME = 'E2E Test YouTube Video';
+const E2E_CHAT_QUERY = 'What is in the YouTube video?';
 
 let sourceId: string;
 let testConversationIds: string[] = [];
 let api: APIRequestContext;
 
-test.describe.serial('Import Pipeline', () => {
+test.describe.serial('YouTube Pipeline', () => {
   test.beforeAll(async ({ playwright }) => {
     api = await playwright.request.newContext({ baseURL: API });
 
-    // Clean up any stale data from previous failed runs
     const res = await api.get('/api/v1/sources');
     if (res.ok()) {
       const sources = await res.json();
@@ -31,7 +30,6 @@ test.describe.serial('Import Pipeline', () => {
   });
 
   test.afterAll(async () => {
-    // Cleanup regardless of test outcome
     if (sourceId) {
       await api.delete(`/api/v1/sources/${sourceId}`).catch(() => {});
     }
@@ -41,14 +39,17 @@ test.describe.serial('Import Pipeline', () => {
     await api.dispose();
   });
 
-  test('import source from test RSS feed', async ({ page }) => {
+  test('import YouTube video via UI with auto-detection', async ({ page }) => {
     await page.goto('/library');
 
     await page.getByRole('button', { name: /Import/ }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    // URL-first flow: just paste the URL, no source type dropdown
-    await page.getByLabel('URL').fill(FIXTURE_RSS);
+    await page.getByLabel('URL').fill(YOUTUBE_URL);
+
+    // Wait for auto-detection badge
+    await expect(page.getByText('YouTube video')).toBeVisible({ timeout: 10_000 });
+
     await page.getByLabel('Name').clear();
     await page.getByLabel('Name').fill(SOURCE_NAME);
 
@@ -72,11 +73,11 @@ test.describe.serial('Import Pipeline', () => {
     const source = sources.find((s: { name: string }) => s.name === SOURCE_NAME);
     sourceId = source.id;
 
-    // Verify auto-detected as MEDIA
-    expect(source.sourceType).toBe('MEDIA');
+    // Verify auto-detected as YOUTUBE
+    expect(source.sourceType).toBe('YOUTUBE');
   });
 
-  test('job completes and episodes are indexed', async ({ page }) => {
+  test('YouTube video is transcribed and indexed', async ({ page }) => {
     test.setTimeout(300_000);
     expect(sourceId).toBeTruthy();
 
@@ -95,11 +96,12 @@ test.describe.serial('Import Pipeline', () => {
       )
       .toBe(true);
 
+    // Verify episode appears on source detail page
     await page.goto(`/library/${sourceId}`);
-    await expect(page.getByText('Test Episode One')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'E2E Test YouTube Video' }).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('query indexed content via chat', async ({ page }) => {
+  test('query YouTube transcription via chat', async ({ page }) => {
     test.setTimeout(120_000);
     expect(sourceId).toBeTruthy();
 
@@ -108,7 +110,7 @@ test.describe.serial('Import Pipeline', () => {
 
     const textarea = page.getByPlaceholder('Ask a question about your knowledge base...');
     await textarea.click();
-    await textarea.pressSequentially('What content has been indexed?', { delay: 20 });
+    await textarea.pressSequentially(E2E_CHAT_QUERY, { delay: 20 });
 
     const sendButton = page.getByRole('button', { name: 'Send' });
     await expect(sendButton).toBeEnabled();
@@ -119,7 +121,6 @@ test.describe.serial('Import Pipeline', () => {
       page.locator('[class*="bg-muted"]').filter({ hasText: /.{10,}/ }),
     ).toBeVisible({ timeout: 90_000 });
 
-    // Track test-created conversations for cleanup
     const convRes = await api.get('/api/v1/conversations');
     if (convRes.ok()) {
       const convs = await convRes.json();

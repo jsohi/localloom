@@ -1,0 +1,10 @@
+{
+  "id": "e2e_test_video",
+  "title": "E2E Test YouTube Video",
+  "uploader": "LocalLoom Test Channel",
+  "description": "A test video for automated E2E testing of YouTube import pipeline. This video covers the photosynthetic quantum relay and its applications in neural signal processing.",
+  "thumbnail": "http://test-fixtures/artwork.png",
+  "duration": 10,
+  "ext": "wav",
+  "webpage_url": "https://www.youtube.com/watch?v=e2e_test_video"
+}

@@ -20,7 +20,7 @@ export function CitationPanel({ citations }: CitationPanelProps) {
             key={`${c.sourceId}-${c.contentUnitId}-${i}`}
             className="bg-muted/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
           >
-            {c.sourceType === 'PODCAST' ? (
+            {c.sourceType === 'MEDIA' || c.sourceType === 'YOUTUBE' ? (
               <MicIcon className="size-3 shrink-0" />
             ) : (
               <FileTextIcon className="size-3 shrink-0" />

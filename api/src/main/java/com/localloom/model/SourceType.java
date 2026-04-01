@@ -1,9 +1,10 @@
 package com.localloom.model;
 
 public enum SourceType {
-  PODCAST,
+  MEDIA,
+  YOUTUBE,
   WEB_PAGE,
+  FILE_UPLOAD,
   TEAMS,
-  GITHUB,
-  FILE_UPLOAD
+  GITHUB
 }

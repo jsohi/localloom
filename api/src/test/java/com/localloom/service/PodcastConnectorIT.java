@@ -265,7 +265,7 @@ class PodcastConnectorIT {
   private Source createSource(final String name, final String originUrl) {
     var source = new Source();
     source.setName(name);
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl(originUrl);
     source.setSyncStatus(SyncStatus.IDLE);
     return sourceRepository.save(source);

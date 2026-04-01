@@ -30,3 +30,5 @@ localloom:
   audio:
     dir: ${java.io.tmpdir}/localloom-test-audio
     skip-dependency-check: true
+  security:
+    ssrf-allowed-hosts: localhost

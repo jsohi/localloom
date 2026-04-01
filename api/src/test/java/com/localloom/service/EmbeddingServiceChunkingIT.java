@@ -42,7 +42,7 @@ class EmbeddingServiceChunkingIT {
         sourceId,
         contentUnitId,
         "AI Podcast",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(fragment));
 
@@ -58,7 +58,7 @@ class EmbeddingServiceChunkingIT {
       assertThat(meta.get("source_id")).isEqualTo(sourceId.toString());
       assertThat(meta.get("content_unit_id")).isEqualTo(contentUnitId.toString());
       assertThat(meta.get("content_unit_title")).isEqualTo("AI Podcast");
-      assertThat(meta.get("source_type")).isEqualTo("PODCAST");
+      assertThat(meta.get("source_type")).isEqualTo("MEDIA");
       assertThat(meta.get("location")).isEqualTo("timestamp:00:00:00");
     }
   }
@@ -83,7 +83,7 @@ class EmbeddingServiceChunkingIT {
         sourceId,
         UUID.randomUUID(),
         "Mixed Content",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(blankFragment, nullFragment, validFragment));
 

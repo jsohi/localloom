@@ -66,10 +66,14 @@ localloom:
     url: http://localhost:8100
   audio:
     dir: data/audio
+  security:
+    ssrf-allowed-hosts: []
   upload:
     dir: data/uploads
   connectors:
-    podcast:
+    media:
+      enabled: true
+    youtube:
       enabled: true
     file-upload:
       enabled: true

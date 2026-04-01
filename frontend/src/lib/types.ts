@@ -1,11 +1,12 @@
 // Enums
 
 export enum SourceType {
-  PODCAST = 'PODCAST',
+  MEDIA = 'MEDIA',
+  YOUTUBE = 'YOUTUBE',
   WEB_PAGE = 'WEB_PAGE',
+  FILE_UPLOAD = 'FILE_UPLOAD',
   TEAMS = 'TEAMS',
   GITHUB = 'GITHUB',
-  FILE_UPLOAD = 'FILE_UPLOAD',
 }
 
 export enum ContentType {
@@ -104,11 +105,18 @@ export interface Message {
   createdAt: string;
 }
 
-// API response shapes — these use snake_case (manually built via Map.of in controllers)
+// API response shapes — snake_case for manually built Map.of responses, camelCase for Jackson
 
 export interface CreateSourceResponse {
   source_id: string;
   job_id: string;
+  source_type?: string;
+}
+
+/** Response from POST /sources/detect-url — uses camelCase (Map.of keys match Java field names). */
+export interface DetectUrlResponse {
+  urlType: string;
+  sourceType: string;
 }
 
 export interface SyncSourceResponse {

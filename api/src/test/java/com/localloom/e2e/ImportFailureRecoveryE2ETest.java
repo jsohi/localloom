@@ -178,7 +178,7 @@ class ImportFailureRecoveryE2ETest {
   private Source createSource(final String name) {
     var source = new Source();
     source.setName(name);
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/feed.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     return sourceRepository.save(source);
@@ -204,7 +204,7 @@ class ImportFailureRecoveryE2ETest {
                 null,
                 null,
                 source.getOriginUrl(),
-                SourceType.PODCAST,
+                SourceType.MEDIA,
                 episodes));
 
     when(urlResolver.detectType(any())).thenReturn(UrlResolver.UrlType.RSS);

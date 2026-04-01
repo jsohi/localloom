@@ -7,45 +7,27 @@ test.describe('Import Dialog Fields', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 
-  test('podcast shows feed URL, name, and max episodes', async ({ page }) => {
-    // Podcast is the default type
-    await expect(page.getByLabel('Feed URL')).toBeVisible();
+  test('URL mode shows URL input and name by default', async ({ page }) => {
+    await expect(page.getByLabel('URL')).toBeVisible();
     await expect(page.getByLabel('Name')).toBeVisible();
-    await expect(page.getByLabel(/Max Episodes/)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Import Podcast/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Import$/ })).toBeVisible();
   });
 
-  test('file upload shows file picker and name', async ({ page }) => {
-    await page.getByLabel('Source Type').click();
-    await page.getByRole('option', { name: /File Upload/ }).click();
+  test('file mode shows file picker and name', async ({ page }) => {
+    await page.getByRole('button', { name: /Upload a File/ }).click();
 
     await expect(page.getByLabel('File')).toBeVisible();
     await expect(page.getByLabel('Name')).toBeVisible();
-    await expect(page.getByLabel(/Max Episodes/)).toBeHidden();
+    await expect(page.getByLabel('URL')).toBeHidden();
     await expect(page.getByRole('button', { name: /Upload & Import/ })).toBeVisible();
   });
 
-  test('web page shows URL and name fields', async ({ page }) => {
-    await page.getByLabel('Source Type').click();
-    await page.getByRole('option', { name: /Web Page/ }).click();
+  test('switching back to URL mode hides file input', async ({ page }) => {
+    await page.getByRole('button', { name: /Upload a File/ }).click();
+    await expect(page.getByLabel('File')).toBeVisible();
 
-    await expect(page.getByLabel('Page URL')).toBeVisible();
-    await expect(page.getByLabel('Name')).toBeVisible();
-    await expect(page.getByLabel(/Max Episodes/)).toBeHidden();
-    await expect(page.getByRole('button', { name: /Import Page/ })).toBeVisible();
-  });
-
-  test('github option is disabled when connector off', async ({ page }) => {
-    await page.getByLabel('Source Type').click();
-    const githubOption = page.getByRole('option', { name: /GitHub/ });
-    await expect(githubOption).toBeVisible();
-    await expect(githubOption).toBeDisabled();
-  });
-
-  test('teams option is disabled when connector off', async ({ page }) => {
-    await page.getByLabel('Source Type').click();
-    const teamsOption = page.getByRole('option', { name: /Teams/ });
-    await expect(teamsOption).toBeVisible();
-    await expect(teamsOption).toBeDisabled();
+    await page.getByRole('button', { name: /Paste a URL/ }).click();
+    await expect(page.getByLabel('URL')).toBeVisible();
+    await expect(page.getByLabel('File')).toBeHidden();
   });
 });

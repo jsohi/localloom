@@ -53,7 +53,7 @@ class SourceControllerIT {
                 .content(
                     """
                     {
-                      "sourceType": "PODCAST",
+                      "sourceType": "MEDIA",
                       "name": "Test Podcast",
                       "originUrl": "https://example.com/feed.xml"
                     }
@@ -72,7 +72,7 @@ class SourceControllerIT {
                 .content(
                     """
                     {
-                      "sourceType": "PODCAST",
+                      "sourceType": "MEDIA",
                       "originUrl": "https://example.com/feed.xml"
                     }
                     """))
@@ -83,7 +83,7 @@ class SourceControllerIT {
   void listSourcesReturnsAll() throws Exception {
     var source = new Source();
     source.setName("Listed Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/list.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     sourceRepository.save(source);
@@ -98,7 +98,7 @@ class SourceControllerIT {
   void getSourceReturnsSourceAndContentUnits() throws Exception {
     var source = new Source();
     source.setName("Detail Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/detail.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -121,7 +121,7 @@ class SourceControllerIT {
   void deleteSourceReturnsNoContent() throws Exception {
     var source = new Source();
     source.setName("Deletable Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/delete.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -135,7 +135,7 @@ class SourceControllerIT {
   void syncSourceReturnsAccepted() throws Exception {
     var source = new Source();
     source.setName("Syncable Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/sync.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -145,5 +145,112 @@ class SourceControllerIT {
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.source_id").value(source.getId().toString()))
         .andExpect(jsonPath("$.job_id").exists());
+  }
+
+  @Test
+  void detectUrlReturnsTypeForYoutubeUrl() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources/detect-url")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    { "url": "https://www.youtube.com/watch?v=abc123" }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.urlType").value("YOUTUBE"))
+        .andExpect(jsonPath("$.sourceType").value("YOUTUBE"));
+  }
+
+  @Test
+  void detectUrlReturnsTypeForRssUrl() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources/detect-url")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    { "url": "https://example.com/feed.xml" }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.urlType").value("RSS"))
+        .andExpect(jsonPath("$.sourceType").value("MEDIA"));
+  }
+
+  @Test
+  void detectUrlReturnsWebPageForPlainUrl() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources/detect-url")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    { "url": "https://example.com/blog/post" }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.urlType").value("WEB_PAGE"))
+        .andExpect(jsonPath("$.sourceType").value("WEB_PAGE"));
+  }
+
+  @Test
+  void detectUrlReturnsBadRequestForBlankUrl() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources/detect-url")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    { "url": "" }
+                    """))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createSourceAutoDetectsTypeFromUrl() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "name": "Auto-Detected Web Page",
+                      "originUrl": "https://example.com/blog/post"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.source_id").exists())
+        .andExpect(jsonPath("$.source_type").value("WEB_PAGE"));
+  }
+
+  @Test
+  void createSourceWithoutTypeOrUrlReturnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    { "name": "No Type Or URL" }
+                    """))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createSourceExplicitTypeOverridesDetection() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sources")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "sourceType": "MEDIA",
+                      "name": "Explicit Override",
+                      "originUrl": "https://example.com/blog/post"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.source_type").value("MEDIA"));
   }
 }

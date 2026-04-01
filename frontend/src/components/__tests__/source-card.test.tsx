@@ -25,7 +25,7 @@ function makeSource(overrides: Partial<Source> = {}): Source {
   return {
     id: 'src-1',
     name: 'My Podcast',
-    sourceType: SourceType.PODCAST,
+    sourceType: SourceType.MEDIA,
     syncStatus: SyncStatus.IDLE,
     createdAt: '2026-01-01T00:00:00Z',
     contentUnits: [],

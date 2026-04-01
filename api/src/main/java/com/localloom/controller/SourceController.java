@@ -12,6 +12,8 @@ import com.localloom.service.EmbeddingService;
 import com.localloom.service.FileUploadService;
 import com.localloom.service.JobService;
 import com.localloom.service.SourceImportService;
+import com.localloom.service.UrlResolver;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +44,8 @@ public class SourceController {
   public record CreateSourceRequest(
       SourceType sourceType, String name, String originUrl, String config, Integer maxEpisodes) {}
 
+  public record DetectUrlRequest(String url) {}
+
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
   private final AudioService audioService;
@@ -49,6 +53,7 @@ public class SourceController {
   private final FileUploadService fileUploadService;
   private final JobService jobService;
   private final SourceImportService sourceImportService;
+  private final UrlResolver urlResolver;
 
   public SourceController(
       final SourceRepository sourceRepository,
@@ -57,7 +62,8 @@ public class SourceController {
       final EmbeddingService embeddingService,
       final FileUploadService fileUploadService,
       final JobService jobService,
-      final SourceImportService sourceImportService) {
+      final SourceImportService sourceImportService,
+      final UrlResolver urlResolver) {
     this.sourceRepository = sourceRepository;
     this.contentUnitRepository = contentUnitRepository;
     this.audioService = audioService;
@@ -65,22 +71,37 @@ public class SourceController {
     this.fileUploadService = fileUploadService;
     this.jobService = jobService;
     this.sourceImportService = sourceImportService;
+    this.urlResolver = urlResolver;
+  }
+
+  @PostMapping("/detect-url")
+  public Map<String, String> detectUrl(@RequestBody final DetectUrlRequest request) {
+    if (request.url() == null || request.url().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "url is required");
+    }
+    final var urlType = urlResolver.detectType(request.url());
+    final var sourceType = urlResolver.toSourceType(urlType);
+    return Map.of("urlType", urlType.name(), "sourceType", sourceType.name());
   }
 
   @Transactional
   @PostMapping
-  public ResponseEntity<Map<String, UUID>> createSource(
+  public ResponseEntity<Map<String, Object>> createSource(
       @RequestBody final CreateSourceRequest request) {
+
+    // Auto-detect sourceType from URL if not provided
+    final var effectiveSourceType = resolveSourceType(request);
+
     log.info(
         "Creating source: type={} name='{}' url='{}'",
-        request.sourceType(),
+        effectiveSourceType,
         request.name(),
         request.originUrl());
 
-    validateCreateRequest(request);
+    validateCreateRequest(request, effectiveSourceType);
 
     var source = new Source();
-    source.setSourceType(request.sourceType());
+    source.setSourceType(effectiveSourceType);
     source.setName(request.name());
     source.setOriginUrl(request.originUrl());
     source.setConfig(request.config());
@@ -89,8 +110,6 @@ public class SourceController {
 
     final var job = jobService.createJob(JobType.SYNC, source.getId(), EntityType.SOURCE);
 
-    // Defer async import until after the transaction commits, preventing the
-    // race where the background thread queries a Source that hasn't been flushed yet.
     final var sourceId = source.getId();
     final var jobId = job.getId();
     final var maxEpisodes = request.maxEpisodes();
@@ -103,8 +122,12 @@ public class SourceController {
         });
 
     log.info("Import scheduled after commit: sourceId={} jobId={}", sourceId, jobId);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(Map.of("source_id", sourceId, "job_id", jobId));
+
+    final var body = new LinkedHashMap<String, Object>();
+    body.put("source_id", sourceId);
+    body.put("job_id", jobId);
+    body.put("source_type", effectiveSourceType.name());
+    return ResponseEntity.status(HttpStatus.CREATED).body(body);
   }
 
   @PostMapping("/upload")
@@ -190,30 +213,43 @@ public class SourceController {
     }
     log.info("Deleting sourceId={}", id);
 
-    // Collect content unit IDs before cascade-deleting so we can clean up audio files on disk.
     final var contentUnitIds =
         contentUnitRepository.findBySourceId(id).stream().map(unit -> unit.getId()).toList();
 
     embeddingService.deleteBySource(id);
     sourceRepository.deleteById(id);
 
-    // Delete audio files after the DB records are removed — best-effort, non-transactional.
     audioService.deleteAudioFiles(contentUnitIds);
 
     log.info("Source deleted: id={}", id);
     return ResponseEntity.noContent().build();
   }
 
-  private void validateCreateRequest(final CreateSourceRequest request) {
-    if (request.sourceType() == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sourceType is required");
+  private SourceType resolveSourceType(final CreateSourceRequest request) {
+    if (request.sourceType() != null) {
+      return request.sourceType();
     }
+    if (request.originUrl() != null && !request.originUrl().isBlank()) {
+      final var urlType = urlResolver.detectType(request.originUrl());
+      final var detected = urlResolver.toSourceType(urlType);
+      log.info(
+          "Auto-detected sourceType={} (urlType={}) from URL: {}",
+          detected,
+          urlType,
+          request.originUrl());
+      return detected;
+    }
+    throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST, "Either sourceType or originUrl must be provided");
+  }
+
+  private void validateCreateRequest(
+      final CreateSourceRequest request, final SourceType effectiveSourceType) {
     if (request.name() == null || request.name().isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
     }
-    // FILE_UPLOAD and TEAMS may use the upload endpoint instead, so originUrl is optional
     final var urlRequired =
-        request.sourceType() != SourceType.FILE_UPLOAD && request.sourceType() != SourceType.TEAMS;
+        effectiveSourceType != SourceType.FILE_UPLOAD && effectiveSourceType != SourceType.TEAMS;
     if (urlRequired && (request.originUrl() == null || request.originUrl().isBlank())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "originUrl is required");
     }

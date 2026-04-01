@@ -130,7 +130,7 @@ class SourceImportE2ETest {
                 "https://example.com/icon.png",
                 "https://example.com/feed.xml",
                 "https://example.com/feed.xml",
-                SourceType.PODCAST,
+                SourceType.MEDIA,
                 episodes));
 
     // Mock AudioService to return a temp WAV file
@@ -149,7 +149,7 @@ class SourceImportE2ETest {
                     .content(
                         """
                         {
-                          "sourceType": "PODCAST",
+                          "sourceType": "MEDIA",
                           "name": "E2E Test Podcast",
                           "originUrl": "https://example.com/feed.xml"
                         }
@@ -168,7 +168,7 @@ class SourceImportE2ETest {
     // Create a source directly (bypassing async import)
     var source = new com.localloom.model.Source();
     source.setName("Deletable E2E Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/delete-e2e.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -198,7 +198,7 @@ class SourceImportE2ETest {
                     .content(
                         """
                         {
-                          "sourceType": "PODCAST",
+                          "sourceType": "MEDIA",
                           "name": "Job Tracking Podcast",
                           "originUrl": "https://example.com/job-track.xml"
                         }

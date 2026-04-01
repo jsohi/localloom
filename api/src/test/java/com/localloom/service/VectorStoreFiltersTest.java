@@ -36,13 +36,13 @@ class VectorStoreFiltersTest {
 
   @Test
   void singleSourceType() {
-    var expression = VectorStoreFilters.buildFilterExpression(null, List.of(SourceType.PODCAST));
+    var expression = VectorStoreFilters.buildFilterExpression(null, List.of(SourceType.MEDIA));
     assertThat(expression).isNotNull();
     assertThat(expression.type()).isEqualTo(ExpressionType.EQ);
     var key = (Filter.Key) expression.left();
     assertThat(key.key()).isEqualTo("source_type");
     var value = (Filter.Value) expression.right();
-    assertThat(value.value()).isEqualTo("PODCAST");
+    assertThat(value.value()).isEqualTo("MEDIA");
   }
 
   @Test

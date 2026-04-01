@@ -38,7 +38,7 @@ class RagServiceIT {
         sourceId,
         contentUnitId,
         "Cloud Native Podcast",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(fragment));
 
@@ -48,7 +48,7 @@ class RagServiceIT {
     assertThat(response.answer()).isNotBlank();
     assertThat(response.citations()).isNotEmpty();
     assertThat(response.citations())
-        .anyMatch(c -> "PODCAST".equals(c.sourceType()) && c.contentUnitTitle() != null);
+        .anyMatch(c -> "MEDIA".equals(c.sourceType()) && c.contentUnitTitle() != null);
   }
 
   @Test
@@ -68,7 +68,7 @@ class RagServiceIT {
         podcastSourceId,
         UUID.randomUUID(),
         "API Design Podcast",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(podcastFragment));
 
@@ -80,12 +80,11 @@ class RagServiceIT {
         ContentType.TEXT_FILE,
         List.of(fileFragment));
 
-    var query = new RagQuery("API design", null, null, List.of(SourceType.PODCAST), 5);
+    var query = new RagQuery("API design", null, null, List.of(SourceType.MEDIA), 5);
     var response = ragService.answer(query);
 
     assertThat(response.answer()).isNotBlank();
-    assertThat(response.citations())
-        .allSatisfy(c -> assertThat(c.sourceType()).isEqualTo("PODCAST"));
+    assertThat(response.citations()).allSatisfy(c -> assertThat(c.sourceType()).isEqualTo("MEDIA"));
   }
 
   @Test

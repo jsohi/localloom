@@ -6,8 +6,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +35,10 @@ class UrlResolverRssIT {
   @BeforeEach
   void setUp() {
     wireMock.resetAll();
-    urlResolver = new UrlResolver(RestClient.builder());
+    // Allow localhost for WireMock in tests
+    var ssrfValidator = new SsrfValidator(List.of("localhost"));
+    urlResolver =
+        new UrlResolver(RestClient.builder(), new ObjectMapper(), "yt-dlp", ssrfValidator);
   }
 
   @Test

@@ -52,7 +52,7 @@ class RagConversationHistoryIT {
         sourceId,
         UUID.randomUUID(),
         "DevOps Podcast",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(fragment));
 
@@ -92,7 +92,7 @@ class RagConversationHistoryIT {
         sourceId,
         UUID.randomUUID(),
         "Architecture Podcast",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(fragment));
 

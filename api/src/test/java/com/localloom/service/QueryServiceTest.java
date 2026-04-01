@@ -109,8 +109,7 @@ class QueryServiceTest {
               return msg;
             });
 
-    var citations =
-        List.of(new Citation("PODCAST", "Episode 1", "timestamp:00:05:00", "s1", "cu1"));
+    var citations = List.of(new Citation("MEDIA", "Episode 1", "timestamp:00:05:00", "s1", "cu1"));
     when(ragService.answer(any(RagQuery.class)))
         .thenReturn(new RagResponse("test answer", citations));
 
@@ -144,7 +143,7 @@ class QueryServiceTest {
         .thenReturn(new RagResponse("test answer", List.of()));
 
     var sourceIds = List.of(UUID.randomUUID());
-    var sourceTypes = List.of(com.localloom.model.SourceType.PODCAST);
+    var sourceTypes = List.of(com.localloom.model.SourceType.MEDIA);
     queryService.query("test question", sourceIds, sourceTypes, null);
 
     var capturedQuery = queryCaptor.getValue();

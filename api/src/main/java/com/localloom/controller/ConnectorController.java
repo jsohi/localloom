@@ -24,10 +24,16 @@ public class ConnectorController {
   @GetMapping
   public List<ConnectorInfo> listConnectors() {
     return List.of(
-        new ConnectorInfo(SourceType.PODCAST, "Podcast", connectors.podcast().enabled()),
-        new ConnectorInfo(SourceType.FILE_UPLOAD, "File Upload", connectors.fileUpload().enabled()),
-        new ConnectorInfo(SourceType.WEB_PAGE, "Web Page", connectors.webPage().enabled()),
-        new ConnectorInfo(SourceType.GITHUB, "GitHub", connectors.github().enabled()),
-        new ConnectorInfo(SourceType.TEAMS, "Teams", connectors.teams().enabled()));
+        new ConnectorInfo(SourceType.MEDIA, "Media", isEnabled(connectors.media())),
+        new ConnectorInfo(SourceType.YOUTUBE, "YouTube", isEnabled(connectors.youtube())),
+        new ConnectorInfo(
+            SourceType.FILE_UPLOAD, "File Upload", isEnabled(connectors.fileUpload())),
+        new ConnectorInfo(SourceType.WEB_PAGE, "Web Page", isEnabled(connectors.webPage())),
+        new ConnectorInfo(SourceType.GITHUB, "GitHub", isEnabled(connectors.github())),
+        new ConnectorInfo(SourceType.TEAMS, "Teams", isEnabled(connectors.teams())));
+  }
+
+  private static boolean isEnabled(final ConnectorProperties.ConnectorConfig config) {
+    return config != null && config.enabled();
   }
 }
