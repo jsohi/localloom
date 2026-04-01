@@ -120,7 +120,7 @@ public class QueryService {
   private Conversation resolveConversation(final UUID conversationId) {
     if (conversationId != null) {
       return conversationRepository
-          .findById(conversationId)
+          .findByIdWithMessages(conversationId)
           .orElseThrow(
               () -> new IllegalArgumentException("Conversation not found: " + conversationId));
     }

@@ -2,7 +2,7 @@
 
 export enum SourceType {
   PODCAST = 'PODCAST',
-  CONFLUENCE = 'CONFLUENCE',
+  WEB_PAGE = 'WEB_PAGE',
   TEAMS = 'TEAMS',
   GITHUB = 'GITHUB',
   FILE_UPLOAD = 'FILE_UPLOAD',

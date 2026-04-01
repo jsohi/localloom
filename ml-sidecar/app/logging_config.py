@@ -5,7 +5,7 @@ import logging.handlers
 import os
 import queue
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
@@ -26,7 +26,7 @@ class UtcMillisFormatter(logging.Formatter):
     """Match the Java API's Log4j2 ISO-8601 UTC format for cross-service log correlation."""
 
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
-        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        dt = datetime.fromtimestamp(record.created, tz=UTC)
         return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(record.msecs):03d}Z"
 
 
@@ -42,7 +42,10 @@ def configure_logging() -> None:
         "formatters": {
             "standard": {
                 "()": UtcMillisFormatter,
-                "format": "%(asctime)s [ml-sidecar] %(levelname)-5s [%(request_id)s] %(name)s - %(message)s",
+                "format": (
+                    "%(asctime)s [ml-sidecar] %(levelname)-5s"
+                    " [%(request_id)s] %(name)s - %(message)s"
+                ),
             },
         },
         "handlers": {
@@ -89,7 +92,11 @@ def configure_logging() -> None:
 
     # Offload file writes to a background thread so disk I/O doesn't block the event loop
     file_handler = next(
-        (h for h in logging.getLogger("app").handlers if isinstance(h, logging.handlers.RotatingFileHandler)),
+        (
+            h
+            for h in logging.getLogger("app").handlers
+            if isinstance(h, logging.handlers.RotatingFileHandler)
+        ),
         None,
     )
     if file_handler is not None:

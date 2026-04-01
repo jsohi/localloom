@@ -43,6 +43,12 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-vector-store-chroma")
     implementation("org.springframework.ai:spring-ai-rag")
 
+    // PDF text extraction
+    implementation("org.apache.pdfbox:pdfbox:3.0.5")
+
+    // HTML scraping
+    implementation("org.jsoup:jsoup:1.18.3")
+
     // Database
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")

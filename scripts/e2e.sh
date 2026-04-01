@@ -63,6 +63,8 @@ for model in "$CHAT_MODEL" "$EMBED_MODEL"; do
 done
 
 # ── Docker services ─────────────────────────────────────────────────────────
+echo "==> Stopping any dev containers to free ports..."
+docker compose -p localloom down 2>/dev/null || true
 echo "==> Building and starting Docker services..."
 docker compose $COMPOSE_FILES build || { echo "ERROR: Docker build failed"; exit 1; }
 docker compose $COMPOSE_FILES up -d --wait --wait-timeout 120 || {
@@ -83,11 +85,11 @@ npx playwright install chromium
 # ── Run tests ───────────────────────────────────────────────────────────────
 echo "==> Running E2E tests..."
 echo "    Model: $CHAT_MODEL"
-echo "    Base URL: http://localhost:3000"
+echo "    Base URL: http://localhost:13000"
 echo ""
 
 TEST_EXIT=0
-npx playwright test "$@" || TEST_EXIT=$?
+BASE_URL=http://localhost:13000 API_URL=http://localhost:18080 npx playwright test "$@" || TEST_EXIT=$?
 
 # ── Collect all logs ───────────────────────────────────────────────────────
 source "$REPO_ROOT/scripts/_collect-logs.sh"

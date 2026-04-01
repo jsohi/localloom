@@ -1,5 +1,6 @@
 package com.localloom.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,6 +33,7 @@ public class Conversation {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+  @JsonIgnore
   @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, orphanRemoval = true)
   @jakarta.persistence.OrderBy("createdAt ASC")
   private List<Message> messages = new ArrayList<>();

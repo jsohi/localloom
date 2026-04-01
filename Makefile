@@ -1,4 +1,4 @@
-.PHONY: setup dev lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean
+.PHONY: setup dev restart lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -9,6 +9,10 @@ setup:
 ## dev: Start API (:8080), ML sidecar (:8100), and frontend (:3000) concurrently.
 dev:
 	@bash scripts/dev.sh
+
+## restart: Kill running services and restart everything (backing services + dev servers).
+restart:
+	@bash scripts/restart.sh
 
 # ── Lint & Format ────────────────────────────────────────────────────────────
 ## lint: Run linters for all three projects.

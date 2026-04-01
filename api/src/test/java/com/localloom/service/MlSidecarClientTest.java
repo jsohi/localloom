@@ -78,7 +78,8 @@ class MlSidecarClientTest {
       wireMock.verify(
           postRequestedFor(urlEqualTo("/transcribe"))
               .withRequestBodyPart(
-                  new com.github.tomakehurst.wiremock.matching.MultipartValuePatternBuilder("audio_file")
+                  new com.github.tomakehurst.wiremock.matching.MultipartValuePatternBuilder(
+                          "audio_file")
                       .withBody(containing("fake audio data"))
                       .build()));
     } finally {

@@ -55,17 +55,32 @@ class FileUploadConnectorIT {
   }
 
   @Test
-  void uploadEndpointReturns501() throws Exception {
+  void uploadEndpointProcessesTextFile() throws Exception {
     var file =
         new MockMultipartFile(
             "file",
             "test-document.txt",
             MediaType.TEXT_PLAIN_VALUE,
-            "Sample file content".getBytes());
+            "Sample file content for text extraction testing.".getBytes());
 
     mockMvc
-        .perform(multipart("/api/v1/sources/upload").file(file))
-        .andExpect(status().isNotImplemented());
+        .perform(
+            multipart("/api/v1/sources/upload")
+                .file(file)
+                .param("name", "Test Document")
+                .param("sourceType", "FILE_UPLOAD"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.source_id").exists())
+        .andExpect(jsonPath("$.job_id").exists());
+
+    var sources = sourceRepository.findAll();
+    assertThat(sources).hasSize(1);
+    assertThat(sources.getFirst().getSourceType()).isEqualTo(SourceType.FILE_UPLOAD);
+    assertThat(sources.getFirst().getName()).isEqualTo("Test Document");
+
+    var units = contentUnitRepository.findAll();
+    assertThat(units).hasSize(1);
+    assertThat(units.getFirst().getRawText()).contains("Sample file content");
   }
 
   @Test

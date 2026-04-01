@@ -147,7 +147,9 @@ class ImportFailureRecoveryE2ETest {
     var jobId = body.get("job_id").asText();
 
     var job = jobService.getJob(java.util.UUID.fromString(jobId)).orElseThrow();
-    assertThat(job.getStatus()).isEqualTo(JobStatus.PENDING);
+    // The async import may have already started/failed by the time we check,
+    // so the job could be PENDING, RUNNING, or FAILED depending on timing
+    assertThat(job.getStatus()).isIn(JobStatus.PENDING, JobStatus.RUNNING, JobStatus.FAILED);
   }
 
   @Test

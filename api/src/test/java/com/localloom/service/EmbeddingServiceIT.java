@@ -81,7 +81,7 @@ class EmbeddingServiceIT {
     fragment1.setLocation("timestamp:00:01:00");
 
     var fragment2 = new ContentFragment();
-    fragment2.setText("Confluence page about distributed systems architecture patterns.");
+    fragment2.setText("Web page about distributed systems architecture patterns.");
     fragment2.setLocation("page:3");
 
     embeddingService.embedContent(
@@ -96,7 +96,7 @@ class EmbeddingServiceIT {
         sourceId2,
         UUID.randomUUID(),
         "Architecture Patterns",
-        SourceType.CONFLUENCE,
+        SourceType.WEB_PAGE,
         ContentType.PAGE,
         List.of(fragment2));
 

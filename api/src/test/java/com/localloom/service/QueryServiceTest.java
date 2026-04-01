@@ -68,7 +68,8 @@ class QueryServiceTest {
     var conversationId = UUID.randomUUID();
     var conversation = createConversation();
     conversation.setId(conversationId);
-    when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+    when(conversationRepository.findByIdWithMessages(conversationId))
+        .thenReturn(Optional.of(conversation));
     when(messageRepository.save(any(Message.class)))
         .thenAnswer(
             invocation -> {

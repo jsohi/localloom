@@ -9,6 +9,7 @@ import com.localloom.repository.ContentUnitRepository;
 import com.localloom.repository.SourceRepository;
 import com.localloom.service.AudioService;
 import com.localloom.service.EmbeddingService;
+import com.localloom.service.FileUploadService;
 import com.localloom.service.JobService;
 import com.localloom.service.SourceImportService;
 import java.util.List;
@@ -39,12 +40,13 @@ public class SourceController {
   private static final Logger log = LogManager.getLogger(SourceController.class);
 
   public record CreateSourceRequest(
-      SourceType sourceType, String name, String originUrl, String config) {}
+      SourceType sourceType, String name, String originUrl, String config, Integer maxEpisodes) {}
 
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
   private final AudioService audioService;
   private final EmbeddingService embeddingService;
+  private final FileUploadService fileUploadService;
   private final JobService jobService;
   private final SourceImportService sourceImportService;
 
@@ -53,12 +55,14 @@ public class SourceController {
       final ContentUnitRepository contentUnitRepository,
       final AudioService audioService,
       final EmbeddingService embeddingService,
+      final FileUploadService fileUploadService,
       final JobService jobService,
       final SourceImportService sourceImportService) {
     this.sourceRepository = sourceRepository;
     this.contentUnitRepository = contentUnitRepository;
     this.audioService = audioService;
     this.embeddingService = embeddingService;
+    this.fileUploadService = fileUploadService;
     this.jobService = jobService;
     this.sourceImportService = sourceImportService;
   }
@@ -89,11 +93,12 @@ public class SourceController {
     // race where the background thread queries a Source that hasn't been flushed yet.
     final var sourceId = source.getId();
     final var jobId = job.getId();
+    final var maxEpisodes = request.maxEpisodes();
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
           @Override
           public void afterCommit() {
-            sourceImportService.importSource(sourceId, jobId);
+            sourceImportService.importSource(sourceId, jobId, maxEpisodes);
           }
         });
 
@@ -103,12 +108,35 @@ public class SourceController {
   }
 
   @PostMapping("/upload")
-  public ResponseEntity<Void> uploadFile(@RequestParam("file") final MultipartFile file) {
+  public ResponseEntity<Map<String, UUID>> uploadFile(
+      @RequestParam("file") final MultipartFile file,
+      @RequestParam(value = "name", required = false) final String name,
+      @RequestParam(value = "sourceType", required = false) final String sourceTypeParam) {
+    final var filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
+    final var displayName = (name != null && !name.isBlank()) ? name : filename;
+    SourceType sourceType;
+    try {
+      sourceType =
+          sourceTypeParam != null
+              ? SourceType.valueOf(sourceTypeParam.toUpperCase())
+              : SourceType.FILE_UPLOAD;
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Invalid sourceType: " + sourceTypeParam);
+    }
+
     log.info(
-        "File upload received: originalFilename='{}' size={}",
-        file.getOriginalFilename(),
-        file.getSize());
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        "File upload received: name='{}' filename='{}' size={} type={}",
+        displayName,
+        filename,
+        file.getSize(),
+        sourceType);
+
+    final var result = fileUploadService.storeAndProcess(file, displayName, sourceType);
+    final var job = jobService.createJob(JobType.SYNC, result.sourceId(), EntityType.SOURCE);
+
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(Map.of("source_id", result.sourceId(), "job_id", job.getId()));
   }
 
   @GetMapping
@@ -183,7 +211,10 @@ public class SourceController {
     if (request.name() == null || request.name().isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
     }
-    if (request.originUrl() == null || request.originUrl().isBlank()) {
+    // FILE_UPLOAD and TEAMS may use the upload endpoint instead, so originUrl is optional
+    final var urlRequired =
+        request.sourceType() != SourceType.FILE_UPLOAD && request.sourceType() != SourceType.TEAMS;
+    if (urlRequired && (request.originUrl() == null || request.originUrl().isBlank())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "originUrl is required");
     }
   }
