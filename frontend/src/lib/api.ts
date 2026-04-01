@@ -6,6 +6,7 @@ import type {
   ConnectorInfo,
   ContentFragment,
   CreateSourceResponse,
+  DetectUrlResponse,
   SyncSourceResponse,
   SourceDetailResponse,
   LlmHealthResponse,
@@ -55,8 +56,15 @@ export function getSource(id: string): Promise<SourceDetailResponse> {
   return fetchApi<SourceDetailResponse>(`/sources/${id}`);
 }
 
+export function detectUrl(url: string): Promise<DetectUrlResponse> {
+  return fetchApi<DetectUrlResponse>('/sources/detect-url', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+}
+
 export function createSource(body: {
-  sourceType: string;
+  sourceType?: string;
   name: string;
   originUrl: string;
   config?: string;

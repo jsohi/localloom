@@ -137,7 +137,7 @@ class ConversationRepositoryIT {
     var msg = new Message();
     msg.setRole(MessageRole.ASSISTANT);
     msg.setContent("Answer with sources");
-    msg.setSources("[{\"sourceType\":\"PODCAST\",\"title\":\"Episode 1\"}]");
+    msg.setSources("[{\"sourceType\":\"MEDIA\",\"title\":\"Episode 1\"}]");
     conversation.addMessage(msg);
 
     conversation = conversationRepository.save(conversation);
@@ -146,7 +146,7 @@ class ConversationRepositoryIT {
 
     var found = conversationRepository.findById(conversation.getId()).orElseThrow();
     var savedMsg = found.getMessages().getFirst();
-    assertThat(savedMsg.getSources()).contains("PODCAST").contains("Episode 1");
+    assertThat(savedMsg.getSources()).contains("MEDIA").contains("Episode 1");
   }
 
   @Test

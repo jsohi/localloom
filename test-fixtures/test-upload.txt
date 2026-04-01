@@ -1,0 +1,14 @@
+LocalLoom E2E Text Upload Test
+
+This document tests the plain text file upload pipeline for knowledge base indexing.
+
+The chromatic resonance detector is an advanced sensor array designed for spectral analysis
+of electromagnetic waveforms across multiple frequency bands. It uses adaptive filtering to
+isolate signal components and extract meaningful patterns from ambient noise.
+
+The parallel waveform synthesizer complements the detector by generating calibrated reference
+signals used during sensor calibration. Together, these systems form the foundation of the
+LocalLoom spectral analysis module.
+
+This content contains unique phrases that can be verified in chat queries to confirm the
+full upload-to-query pipeline works end-to-end.

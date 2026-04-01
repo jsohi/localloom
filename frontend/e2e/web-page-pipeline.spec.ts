@@ -34,15 +34,12 @@ test.describe.serial('Web Page Pipeline', () => {
     await page.getByRole('button', { name: /Import/ }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    // Select Web Page type
-    await page.getByLabel('Source Type').click();
-    await page.getByRole('option', { name: /Web Page/ }).click();
-
-    await page.getByLabel('Page URL').fill(FIXTURE_URL);
+    // URL-first flow: just paste the URL, no source type dropdown
+    await page.getByLabel('URL').fill(FIXTURE_URL);
     await page.getByLabel('Name').clear();
     await page.getByLabel('Name').fill(SOURCE_NAME);
 
-    await page.getByRole('dialog').getByRole('button', { name: 'Import Page' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^Import$/ }).click();
     await expect(page.getByRole('dialog')).toBeHidden({ timeout: 10_000 });
 
     // Poll API until source appears
@@ -59,7 +56,11 @@ test.describe.serial('Web Page Pipeline', () => {
 
     const res = await api.get('/api/v1/sources');
     const sources = await res.json();
-    sourceId = sources.find((s: { name: string }) => s.name === SOURCE_NAME).id;
+    const source = sources.find((s: { name: string }) => s.name === SOURCE_NAME);
+    sourceId = source.id;
+
+    // Verify auto-detected as WEB_PAGE
+    expect(source.sourceType).toBe('WEB_PAGE');
   });
 
   test('web page is indexed with sections', async () => {

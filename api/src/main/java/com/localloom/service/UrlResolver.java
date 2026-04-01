@@ -1,9 +1,12 @@
 package com.localloom.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.localloom.model.SourceType;
 import com.localloom.service.dto.ResolvedEpisode;
 import com.localloom.service.dto.ResolvedPodcast;
 import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -11,10 +14,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.w3c.dom.Element;
@@ -41,10 +48,24 @@ public class UrlResolver {
       "https://itunes.apple.com/search?term=%s&media=podcast&entity=podcast&limit=1";
   private static final String SPOTIFY_OEMBED_URL = "https://open.spotify.com/oembed?url=%s";
 
-  private final RestClient restClient;
+  private static final Set<String> RSS_PATH_HINTS =
+      Set.of(".xml", ".rss", ".atom", "/feed", "/rss");
+  private static final int YTDLP_TIMEOUT_SECONDS = 30;
 
-  public UrlResolver(final RestClient.Builder restClientBuilder) {
+  private final RestClient restClient;
+  private final ObjectMapper objectMapper;
+  private final String ytdlpPath;
+  private final SsrfValidator ssrfValidator;
+
+  public UrlResolver(
+      final RestClient.Builder restClientBuilder,
+      final ObjectMapper objectMapper,
+      @Value("${localloom.audio.ytdlp-path:yt-dlp}") final String ytdlpPath,
+      final SsrfValidator ssrfValidator) {
     this.restClient = restClientBuilder.build();
+    this.objectMapper = objectMapper;
+    this.ytdlpPath = ytdlpPath;
+    this.ssrfValidator = ssrfValidator;
   }
 
   // -------------------------------------------------------------------------
@@ -55,7 +76,8 @@ public class UrlResolver {
     YOUTUBE,
     APPLE_PODCASTS,
     SPOTIFY,
-    RSS
+    RSS,
+    WEB_PAGE
   }
 
   /** Detects the type of the given URL based on domain and path pattern matching. */
@@ -77,8 +99,21 @@ public class UrlResolver {
       log.debug("Detected URL type SPOTIFY for: {}", url);
       return UrlType.SPOTIFY;
     }
-    log.debug("No specific match for URL, treating as RSS: {}", url);
-    return UrlType.RSS;
+    if (looksLikeRss(url)) {
+      log.debug("URL looks like an RSS feed: {}", url);
+      return UrlType.RSS;
+    }
+    log.debug("No specific match for URL, treating as WEB_PAGE: {}", url);
+    return UrlType.WEB_PAGE;
+  }
+
+  /** Maps a detected {@link UrlType} to the corresponding {@link SourceType} pipeline. */
+  public SourceType toSourceType(final UrlType urlType) {
+    return switch (urlType) {
+      case YOUTUBE -> SourceType.YOUTUBE;
+      case APPLE_PODCASTS, SPOTIFY, RSS -> SourceType.MEDIA;
+      case WEB_PAGE -> SourceType.WEB_PAGE;
+    };
   }
 
   /** Resolves the given URL to a {@link ResolvedPodcast} containing metadata and episode list. */
@@ -90,6 +125,9 @@ public class UrlResolver {
       case APPLE_PODCASTS -> resolveApplePodcasts(url);
       case SPOTIFY -> resolveSpotify(url);
       case RSS -> resolveRss(url);
+      case WEB_PAGE ->
+          throw new IllegalArgumentException(
+              "Cannot resolve WEB_PAGE URLs via UrlResolver: " + url);
     };
   }
 
@@ -98,29 +136,98 @@ public class UrlResolver {
   // -------------------------------------------------------------------------
 
   /**
-   * Resolves a YouTube URL. Extracts the video or playlist ID from the URL and returns stub
-   * metadata.
-   *
-   * <p>TODO: Replace stub with a full yt-dlp --dump-json subprocess call via ProcessBuilder to
-   * retrieve real title, description, uploader, and episode list (for playlists / channels).
+   * Resolves a YouTube URL by calling {@code yt-dlp --dump-json} to retrieve real metadata (title,
+   * uploader, description, thumbnail, duration).
    */
   private ResolvedPodcast resolveYoutube(final String url) {
-    log.debug("Resolving YouTube URL: {}", url);
+    log.debug("Resolving YouTube URL via yt-dlp: {}", url);
 
-    final var videoId = extractYoutubeId(url);
-    log.info("Extracted YouTube ID: {}", videoId);
+    try {
+      // Use -- to prevent user URLs starting with - from being parsed as yt-dlp flags
+      final var pb = new ProcessBuilder(ytdlpPath, "--dump-json", "--no-playlist", "--", url);
+      pb.redirectErrorStream(false);
+      final var process = pb.start();
 
-    // TODO: invoke yt-dlp for real metadata, e.g.:
-    //   ProcessBuilder pb = new ProcessBuilder("yt-dlp", "--dump-json", "--no-playlist", url);
-    //   Process proc = pb.start();
-    //   String json = new String(proc.getInputStream().readAllBytes());
-    //   -- then parse the JSON for title, uploader, description, thumbnail, etc.
+      // Read stdout and stderr concurrently in background threads to avoid pipe-buffer deadlock
+      // and ensure waitFor timeout is respected even if streams block
+      final var stdoutFuture =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  return new String(
+                      process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                  return "";
+                }
+              });
+      final var stderrFuture =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  return new String(
+                      process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                  return "";
+                }
+              });
 
-    final var episodes =
-        List.of(new ResolvedEpisode("YouTube video " + videoId, null, url, null, null, videoId));
+      final var exited = process.waitFor(YTDLP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      if (!exited) {
+        process.destroyForcibly();
+        throw new IllegalStateException("yt-dlp timed out after " + YTDLP_TIMEOUT_SECONDS + "s");
+      }
 
-    return new ResolvedPodcast(
-        "YouTube: " + videoId, null, null, null, null, url, SourceType.PODCAST, episodes);
+      final var json = stdoutFuture.join();
+      final var stderr = stderrFuture.join();
+
+      if (process.exitValue() != 0) {
+        throw new IllegalStateException(
+            "yt-dlp failed (exit " + process.exitValue() + "): " + stderr);
+      }
+
+      final var node = objectMapper.readTree(json);
+
+      final var videoId = nodeText(node, "id");
+      final var title = nodeText(node, "title");
+      final var uploader = nodeText(node, "uploader");
+      final var description = nodeText(node, "description");
+      final var thumbnail = nodeText(node, "thumbnail");
+      final var durationNode = node.get("duration");
+      final var durationSeconds =
+          durationNode != null && durationNode.isNumber() ? durationNode.intValue() : null;
+
+      log.info(
+          "yt-dlp resolved: title='{}' uploader='{}' duration={}s",
+          title,
+          uploader,
+          durationSeconds);
+
+      final var episodes =
+          List.of(
+              new ResolvedEpisode(
+                  title != null ? title : "YouTube video " + videoId,
+                  description,
+                  url,
+                  null,
+                  durationSeconds,
+                  videoId));
+
+      return new ResolvedPodcast(
+          title, uploader, description, thumbnail, null, url, SourceType.YOUTUBE, episodes);
+
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("yt-dlp interrupted", e);
+    } catch (Exception e) {
+      if (e instanceof IllegalStateException) throw (IllegalStateException) e;
+      throw new IllegalStateException(
+          "Failed to resolve YouTube URL via yt-dlp: " + e.getMessage(), e);
+    }
+  }
+
+  private static String nodeText(final JsonNode node, final String field) {
+    final var child = node.get(field);
+    return child != null && child.isTextual() ? child.asText() : null;
   }
 
   /**
@@ -189,6 +296,7 @@ public class UrlResolver {
    */
   private ResolvedPodcast resolveRss(final String feedUrl) {
     log.debug("Resolving RSS feed: {}", feedUrl);
+    ssrfValidator.validate(feedUrl);
 
     final var xmlBytes = restClient.get().uri(feedUrl).retrieve().body(byte[].class);
 
@@ -199,6 +307,12 @@ public class UrlResolver {
     try {
       final var factory = DocumentBuilderFactory.newInstance();
       factory.setNamespaceAware(true);
+      // Prevent XXE attacks on user-supplied RSS feeds (allow DTDs since RSS uses them)
+      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+      factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+      factory.setXIncludeAware(false);
+      factory.setExpandEntityReferences(false);
       final var builder = factory.newDocumentBuilder();
       final var doc = builder.parse(new ByteArrayInputStream(xmlBytes));
       doc.getDocumentElement().normalize();
@@ -223,7 +337,7 @@ public class UrlResolver {
       log.info("Parsed RSS feed '{}': {} episode(s)", title, episodes.size());
 
       return new ResolvedPodcast(
-          title, author, description, artworkUrl, feedUrl, feedUrl, SourceType.PODCAST, episodes);
+          title, author, description, artworkUrl, feedUrl, feedUrl, SourceType.MEDIA, episodes);
 
     } catch (Exception e) {
       throw new IllegalStateException("Failed to parse RSS feed: " + feedUrl, e);
@@ -233,22 +347,6 @@ public class UrlResolver {
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
-
-  private String extractYoutubeId(final String url) {
-    final var watchMatcher = YOUTUBE_WATCH.matcher(url);
-    if (watchMatcher.find()) {
-      return watchMatcher.group(1);
-    }
-    final var shortMatcher = YOUTUBE_SHORT.matcher(url);
-    if (shortMatcher.find()) {
-      return shortMatcher.group(1);
-    }
-    final var playlistMatcher = YOUTUBE_PLAYLIST.matcher(url);
-    if (playlistMatcher.find()) {
-      return playlistMatcher.group(1);
-    }
-    throw new IllegalArgumentException("Could not extract YouTube ID from URL: " + url);
-  }
 
   @SuppressWarnings("unchecked")
   private ResolvedPodcast parseiTunesResponse(
@@ -288,7 +386,7 @@ public class UrlResolver {
     }
 
     return new ResolvedPodcast(
-        title, author, description, artwork, feedUrl, sourceUrl, SourceType.PODCAST, episodes);
+        title, author, description, artwork, feedUrl, sourceUrl, SourceType.MEDIA, episodes);
   }
 
   private ResolvedEpisode parseRssItem(final Element item) {
@@ -298,6 +396,9 @@ public class UrlResolver {
       description = firstElementText(item, "itunes:summary");
     }
     final var audioUrl = extractEnclosureUrl(item);
+    if (audioUrl != null) {
+      ssrfValidator.validate(audioUrl);
+    }
     final var guid = firstElementText(item, "guid");
     final var pubDateStr = firstElementText(item, "pubDate");
     final var durationStr = firstElementText(item, "itunes:duration");
@@ -390,5 +491,20 @@ public class UrlResolver {
       log.debug("Could not parse duration '{}': {}", durationStr, e.getMessage());
     }
     return null;
+  }
+
+  /**
+   * Heuristic check: does the URL path look like an RSS/Atom feed? Checks for common extensions
+   * (.xml, .rss, .atom) and path segments (/feed, /rss).
+   */
+  private boolean looksLikeRss(final String url) {
+    try {
+      final var path = URI.create(url).getPath();
+      if (path == null) return false;
+      final var lower = path.toLowerCase();
+      return RSS_PATH_HINTS.stream().anyMatch(lower::contains);
+    } catch (Exception e) {
+      return false;
+    }
   }
 }

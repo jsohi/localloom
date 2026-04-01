@@ -33,14 +33,20 @@ public class AudioService {
   private final Path audioDir;
   private final RestClient restClient;
   private final boolean skipDependencyCheck;
+  private final String ytdlpPath;
+  private final SsrfValidator ssrfValidator;
 
   public AudioService(
       @Value("${localloom.audio.dir:data/audio}") final String audioDir,
       @Value("${localloom.audio.skip-dependency-check:false}") final boolean skipDependencyCheck,
-      final RestClient.Builder restClientBuilder) {
+      @Value("${localloom.audio.ytdlp-path:yt-dlp}") final String ytdlpPath,
+      final RestClient.Builder restClientBuilder,
+      final SsrfValidator ssrfValidator) {
     this.audioDir = Paths.get(audioDir);
     this.skipDependencyCheck = skipDependencyCheck;
+    this.ytdlpPath = ytdlpPath;
     this.restClient = restClientBuilder.build();
+    this.ssrfValidator = ssrfValidator;
   }
 
   // -------------------------------------------------------------------------
@@ -96,15 +102,17 @@ public class AudioService {
    * @return path to the downloaded file (may not yet be 16 kHz mono)
    */
   public Path downloadYoutube(final String url, final UUID contentUnitId) {
+    ssrfValidator.validate(url);
     final var outputPath = audioDir.resolve(contentUnitId + "_raw.wav");
     final var command =
         List.of(
-            "yt-dlp",
+            ytdlpPath,
             "-x",
             "--audio-format",
             "wav",
             "-o",
             outputPath.toAbsolutePath().toString(),
+            "--",
             url);
 
     log.info("Downloading YouTube audio: contentUnit={} url={}", contentUnitId, url);
@@ -121,6 +129,8 @@ public class AudioService {
    * @return path to the downloaded file
    */
   public Path downloadHttp(final String audioUrl, final UUID contentUnitId) {
+    ssrfValidator.validate(audioUrl);
+
     // Derive extension from URL if present; fall back to .mp3
     final var extension = deriveExtension(audioUrl);
     final var outputPath = audioDir.resolve(contentUnitId + "_raw" + extension);
@@ -237,7 +247,7 @@ public class AudioService {
    */
   public void validateDependencies() {
     checkBinary("ffmpeg");
-    checkBinary("yt-dlp");
+    checkBinary(ytdlpPath);
   }
 
   // -------------------------------------------------------------------------

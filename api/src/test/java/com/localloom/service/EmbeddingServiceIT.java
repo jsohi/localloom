@@ -36,7 +36,7 @@ class EmbeddingServiceIT {
         sourceId,
         contentUnitId,
         "ML Basics",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(fragment));
 
@@ -88,7 +88,7 @@ class EmbeddingServiceIT {
         sourceId1,
         UUID.randomUUID(),
         "Distributed Systems Podcast",
-        SourceType.PODCAST,
+        SourceType.MEDIA,
         ContentType.AUDIO,
         List.of(fragment1));
 
@@ -101,8 +101,8 @@ class EmbeddingServiceIT {
         List.of(fragment2));
 
     var podcastOnly =
-        embeddingService.search("distributed systems", 5, null, List.of(SourceType.PODCAST));
+        embeddingService.search("distributed systems", 5, null, List.of(SourceType.MEDIA));
     assertThat(podcastOnly)
-        .allSatisfy(doc -> assertThat(doc.getMetadata().get("source_type")).isEqualTo("PODCAST"));
+        .allSatisfy(doc -> assertThat(doc.getMetadata().get("source_type")).isEqualTo("MEDIA"));
   }
 }

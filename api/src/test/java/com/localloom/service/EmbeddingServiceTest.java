@@ -42,7 +42,7 @@ class EmbeddingServiceTest {
   void combinedSourceIdAndSourceType() {
     var id = UUID.randomUUID();
     var expression =
-        VectorStoreFilters.buildFilterExpression(List.of(id), List.of(SourceType.PODCAST));
+        VectorStoreFilters.buildFilterExpression(List.of(id), List.of(SourceType.MEDIA));
     assertThat(expression).isNotNull();
     assertThat(expression.type()).isEqualTo(ExpressionType.AND);
     assertThat(expression.toString()).contains("source_id").contains("source_type");
@@ -76,9 +76,9 @@ class EmbeddingServiceTest {
   void multipleSourceTypeFilter() {
     var expression =
         VectorStoreFilters.buildFilterExpression(
-            null, List.of(SourceType.PODCAST, SourceType.FILE_UPLOAD));
+            null, List.of(SourceType.MEDIA, SourceType.FILE_UPLOAD));
     assertThat(expression).isNotNull();
     assertThat(expression.type()).isEqualTo(ExpressionType.OR);
-    assertThat(expression.toString()).contains("PODCAST").contains("FILE_UPLOAD");
+    assertThat(expression.toString()).contains("MEDIA").contains("FILE_UPLOAD");
   }
 }

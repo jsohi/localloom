@@ -51,7 +51,7 @@ class RepositoryIT {
   void sourceCrud() {
     var source = new Source();
     source.setName("Test Podcast");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/feed.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -200,7 +200,7 @@ class RepositoryIT {
   private Source createSource(final String name) {
     var source = new Source();
     source.setName(name);
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/feed.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     return sourceRepository.save(source);

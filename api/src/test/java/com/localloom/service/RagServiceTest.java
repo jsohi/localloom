@@ -46,7 +46,7 @@ class RagServiceTest {
         new Document(
             "test content",
             java.util.Map.of(
-                "source_type", "PODCAST",
+                "source_type", "MEDIA",
                 "content_unit_title", "Episode 1",
                 "location", "timestamp:00:05:00",
                 "source_id", UUID.randomUUID().toString(),
@@ -67,7 +67,7 @@ class RagServiceTest {
         (List<com.localloom.service.dto.Citation>) method.invoke(ragService, clientResponse);
 
     assertThat(citations).hasSize(1);
-    assertThat(citations.getFirst().sourceType()).isEqualTo("PODCAST");
+    assertThat(citations.getFirst().sourceType()).isEqualTo("MEDIA");
     assertThat(citations.getFirst().contentUnitTitle()).isEqualTo("Episode 1");
     assertThat(citations.getFirst().location()).isEqualTo("timestamp:00:05:00");
   }
@@ -78,7 +78,7 @@ class RagServiceTest {
     var contentUnitId = UUID.randomUUID().toString();
     var metadata =
         java.util.Map.<String, Object>of(
-            "source_type", "PODCAST",
+            "source_type", "MEDIA",
             "content_unit_title", "Episode 1",
             "location", "timestamp:00:05:00",
             "source_id", sourceId,

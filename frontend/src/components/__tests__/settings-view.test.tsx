@@ -81,7 +81,7 @@ describe('SettingsView', () => {
       {
         id: '1',
         name: 'Test Source',
-        sourceType: 'PODCAST',
+        sourceType: 'MEDIA',
         syncStatus: 'IDLE',
         createdAt: '2025-01-01T00:00:00Z',
         contentUnits: [

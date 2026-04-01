@@ -148,10 +148,7 @@ class FileUploadConnectorIT {
     // Verify unrelated source type filter excludes results
     var excludedResults =
         embeddingService.search(
-            "Kubernetes container orchestration",
-            5,
-            List.of(sourceId),
-            List.of(SourceType.PODCAST));
+            "Kubernetes container orchestration", 5, List.of(sourceId), List.of(SourceType.MEDIA));
     assertThat(excludedResults).isEmpty();
   }
 

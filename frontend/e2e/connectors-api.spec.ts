@@ -13,30 +13,33 @@ test.describe('Connectors API', () => {
     await api.dispose();
   });
 
-  test('GET /connectors returns all 5 connector types', async () => {
+  test('GET /connectors returns all 6 connector types', async () => {
     const res = await api.get('/api/v1/connectors');
     expect(res.ok()).toBe(true);
 
     const connectors = await res.json();
-    expect(connectors).toHaveLength(5);
+    expect(connectors).toHaveLength(6);
 
     const types = connectors.map((c: { type: string }) => c.type);
-    expect(types).toContain('PODCAST');
+    expect(types).toContain('MEDIA');
+    expect(types).toContain('YOUTUBE');
     expect(types).toContain('FILE_UPLOAD');
     expect(types).toContain('WEB_PAGE');
     expect(types).toContain('GITHUB');
     expect(types).toContain('TEAMS');
   });
 
-  test('podcast, file upload, and web page are enabled by default', async () => {
+  test('media, youtube, file upload, and web page are enabled by default', async () => {
     const res = await api.get('/api/v1/connectors');
     const connectors = await res.json();
 
-    const podcast = connectors.find((c: { type: string }) => c.type === 'PODCAST');
+    const media = connectors.find((c: { type: string }) => c.type === 'MEDIA');
+    const youtube = connectors.find((c: { type: string }) => c.type === 'YOUTUBE');
     const fileUpload = connectors.find((c: { type: string }) => c.type === 'FILE_UPLOAD');
     const webPage = connectors.find((c: { type: string }) => c.type === 'WEB_PAGE');
 
-    expect(podcast.enabled).toBe(true);
+    expect(media.enabled).toBe(true);
+    expect(youtube.enabled).toBe(true);
     expect(fileUpload.enabled).toBe(true);
     expect(webPage.enabled).toBe(true);
   });

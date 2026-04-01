@@ -62,7 +62,7 @@ class IngestPipelineE2ETest {
     // Create a source with content units directly
     var source = new Source();
     source.setName("Cascade E2E Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/cascade.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -96,7 +96,7 @@ class IngestPipelineE2ETest {
     // Create source directly
     var source = new Source();
     source.setName("Re-Sync E2E Source");
-    source.setSourceType(SourceType.PODCAST);
+    source.setSourceType(SourceType.MEDIA);
     source.setOriginUrl("https://example.com/resync.xml");
     source.setSyncStatus(SyncStatus.IDLE);
     source = sourceRepository.save(source);
@@ -118,7 +118,7 @@ class IngestPipelineE2ETest {
 
   @Test
   void createSourceWithMissingFieldsReturns400() throws Exception {
-    // Missing sourceType
+    // Missing both sourceType and originUrl — cannot auto-detect
     mockMvc
         .perform(
             post("/api/v1/sources")
@@ -126,8 +126,7 @@ class IngestPipelineE2ETest {
                 .content(
                     """
                     {
-                      "name": "No Type",
-                      "originUrl": "https://example.com/feed.xml"
+                      "name": "No Type Or URL"
                     }
                     """))
         .andExpect(status().isBadRequest());

@@ -5,13 +5,7 @@ import { ImportDialog } from '../import-dialog';
 vi.mock('@/lib/api', () => ({
   createSource: vi.fn(),
   uploadFile: vi.fn(),
-  getConnectors: vi.fn().mockResolvedValue([
-    { type: 'PODCAST', name: 'Podcast', enabled: true },
-    { type: 'FILE_UPLOAD', name: 'File Upload', enabled: true },
-    { type: 'WEB_PAGE', name: 'Web Page', enabled: true },
-    { type: 'GITHUB', name: 'GitHub', enabled: false },
-    { type: 'TEAMS', name: 'Teams', enabled: false },
-  ]),
+  detectUrl: vi.fn().mockResolvedValue({ urlType: 'RSS', sourceType: 'MEDIA' }),
 }));
 
 vi.mock('sonner', () => ({
@@ -39,14 +33,22 @@ describe('ImportDialog', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('shows source type selector, feed URL, name, and max episodes for podcast', async () => {
+  it('shows URL input and name in URL mode', async () => {
     render(<ImportDialog onImported={onImported} />);
     fireEvent.click(screen.getByRole('button', { name: /import source/i }));
 
-    expect(await screen.findByLabelText(/source type/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/feed url/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/url/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/max episodes/i)).toBeInTheDocument();
+  });
+
+  it('switches to file mode and shows file input', async () => {
+    render(<ImportDialog onImported={onImported} />);
+    fireEvent.click(screen.getByRole('button', { name: /import source/i }));
+
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: /upload a file/i }));
+
+    expect(screen.getByLabelText(/file/i)).toBeInTheDocument();
   });
 
   it('submit button is disabled while submitting', async () => {
@@ -57,13 +59,13 @@ describe('ImportDialog', () => {
     render(<ImportDialog onImported={onImported} />);
     fireEvent.click(screen.getByRole('button', { name: /import source/i }));
 
-    const urlInput = await screen.findByLabelText(/feed url/i);
+    const urlInput = await screen.findByLabelText(/url/i);
     const nameInput = screen.getByLabelText(/name/i);
 
     fireEvent.change(urlInput, { target: { value: 'https://example.com/feed.xml' } });
-    fireEvent.change(nameInput, { target: { value: 'Test Podcast' } });
+    fireEvent.change(nameInput, { target: { value: 'Test Source' } });
 
-    const submitButton = screen.getByRole('button', { name: /import podcast/i });
+    const submitButton = screen.getByRole('button', { name: /^import$/i });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -71,7 +73,7 @@ describe('ImportDialog', () => {
     });
   });
 
-  it('calls createSource on podcast submit', async () => {
+  it('calls createSource without sourceType on URL submit', async () => {
     const { createSource } = await import('@/lib/api');
     const mockedCreateSource = vi.mocked(createSource);
     mockedCreateSource.mockResolvedValue({ source_id: 's1', job_id: 'j1' });
@@ -79,21 +81,33 @@ describe('ImportDialog', () => {
     render(<ImportDialog onImported={onImported} />);
     fireEvent.click(screen.getByRole('button', { name: /import source/i }));
 
-    const urlInput = await screen.findByLabelText(/feed url/i);
+    const urlInput = await screen.findByLabelText(/url/i);
     const nameInput = screen.getByLabelText(/name/i);
 
     fireEvent.change(urlInput, { target: { value: 'https://example.com/feed.xml' } });
-    fireEvent.change(nameInput, { target: { value: 'Test Podcast' } });
+    fireEvent.change(nameInput, { target: { value: 'Test Source' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /import podcast/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }));
 
     await waitFor(() => {
       expect(mockedCreateSource).toHaveBeenCalledWith({
-        sourceType: 'PODCAST',
-        name: 'Test Podcast',
+        name: 'Test Source',
         originUrl: 'https://example.com/feed.xml',
         maxEpisodes: undefined,
       });
+    });
+  });
+
+  it('shows error toast when name is empty', async () => {
+    const { toast } = await import('sonner');
+    render(<ImportDialog onImported={onImported} />);
+    fireEvent.click(screen.getByRole('button', { name: /import source/i }));
+
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Please provide a name');
     });
   });
 });
