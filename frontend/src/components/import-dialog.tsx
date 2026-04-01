@@ -109,7 +109,7 @@ export function ImportDialog({ onImported }: ImportDialogProps) {
           <DialogHeader>
             <DialogTitle>Import Source</DialogTitle>
             <DialogDescription>
-              Paste a podcast RSS feed URL or other source URL to import.
+              Paste a URL to import content into your knowledge base.
             </DialogDescription>
           </DialogHeader>
 
@@ -120,7 +120,7 @@ export function ImportDialog({ onImported }: ImportDialogProps) {
               </label>
               <Input
                 id="import-url"
-                placeholder="https://feeds.example.com/podcast.xml"
+                placeholder="https://example.com/feed.xml"
                 value={url}
                 onChange={(e) => handleUrlChange(e.target.value)}
                 disabled={submitting}
@@ -133,7 +133,7 @@ export function ImportDialog({ onImported }: ImportDialogProps) {
               </label>
               <Input
                 id="import-name"
-                placeholder="My Podcast"
+                placeholder="My Source"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={submitting}
