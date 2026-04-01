@@ -115,8 +115,12 @@ public class SourceController {
     final var filename =
         file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
     final var displayName = (name != null && !name.isBlank()) ? name : filename;
-    final var sourceType =
-        sourceTypeParam != null ? SourceType.valueOf(sourceTypeParam) : SourceType.FILE_UPLOAD;
+    SourceType sourceType;
+    try {
+      sourceType = sourceTypeParam != null ? SourceType.valueOf(sourceTypeParam) : SourceType.FILE_UPLOAD;
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid sourceType: " + sourceTypeParam);
+    }
 
     log.info(
         "File upload received: name='{}' filename='{}' size={} type={}",

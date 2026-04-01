@@ -11,6 +11,8 @@ import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentFragmentRepository;
 import com.localloom.repository.ContentUnitRepository;
 import com.localloom.repository.SourceRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -38,6 +40,7 @@ public class FileUploadService {
   private final ContentUnitRepository contentUnitRepository;
   private final ContentFragmentRepository contentFragmentRepository;
   private final EmbeddingService embeddingService;
+  private final ObjectMapper objectMapper;
   private final TransactionTemplate tx;
   private final Path uploadDir;
 
@@ -46,12 +49,14 @@ public class FileUploadService {
       final ContentUnitRepository contentUnitRepository,
       final ContentFragmentRepository contentFragmentRepository,
       final EmbeddingService embeddingService,
+      final ObjectMapper objectMapper,
       final TransactionTemplate transactionTemplate,
       @Value("${localloom.upload.dir:data/uploads}") final String uploadDirPath) {
     this.sourceRepository = sourceRepository;
     this.contentUnitRepository = contentUnitRepository;
     this.contentFragmentRepository = contentFragmentRepository;
     this.embeddingService = embeddingService;
+    this.objectMapper = objectMapper;
     this.tx = transactionTemplate;
     this.uploadDir = Path.of(uploadDirPath);
   }
@@ -63,8 +68,10 @@ public class FileUploadService {
     try {
       Files.createDirectories(uploadDir);
 
-      final var filename =
+      final var rawName =
           file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
+      // Sanitize: strip path separators to prevent directory traversal
+      final var filename = Path.of(rawName).getFileName().toString();
       final var storedPath = uploadDir.resolve(UUID.randomUUID() + "_" + filename);
       file.transferTo(storedPath);
 
@@ -169,7 +176,7 @@ public class FileUploadService {
             fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
             fragment.setSequenceIndex(i);
             fragment.setText(pageText);
-            fragment.setLocation("{\"page\":" + (i + 1) + "}");
+            fragment.setLocation(toJson(Map.of("page", i + 1)));
             fragments.add(contentFragmentRepository.save(fragment));
           }
           return fragments;
@@ -185,9 +192,18 @@ public class FileUploadService {
           fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
           fragment.setSequenceIndex(0);
           fragment.setText(text.strip());
-          fragment.setLocation("{\"file\":\"" + filename + "\"}");
+          fragment.setLocation(toJson(Map.of("file", filename)));
           return List.of(contentFragmentRepository.save(fragment));
         });
+  }
+
+  private String toJson(final Map<String, ?> map) {
+    try {
+      return objectMapper.writeValueAsString(map);
+    } catch (JsonProcessingException e) {
+      log.warn("Could not serialise location metadata: {}", e.getMessage());
+      return "{}";
+    }
   }
 
   public static class FileUploadException extends RuntimeException {

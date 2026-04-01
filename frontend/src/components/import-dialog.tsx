@@ -33,6 +33,7 @@ interface ImportDialogProps {
 const TYPE_CONFIG: Record<
   string,
   {
+    displayName: string;
     description: string;
     urlLabel: string;
     urlPlaceholder: string;
@@ -44,6 +45,7 @@ const TYPE_CONFIG: Record<
   }
 > = {
   [SourceType.PODCAST]: {
+    displayName: 'Podcast',
     description: 'Paste a podcast feed URL, YouTube, Apple Podcasts, or Spotify link.',
     urlLabel: 'Feed URL',
     urlPlaceholder: 'https://example.com/feed.xml',
@@ -53,6 +55,7 @@ const TYPE_CONFIG: Record<
     hasMaxEpisodes: true,
   },
   [SourceType.FILE_UPLOAD]: {
+    displayName: 'File Upload',
     description: 'Upload a PDF, text, or other document file.',
     urlLabel: 'File URL',
     urlPlaceholder: 'https://example.com/document.pdf',
@@ -63,6 +66,7 @@ const TYPE_CONFIG: Record<
     fileAccept: '.pdf,.txt,.md,.csv,.json',
   },
   [SourceType.WEB_PAGE]: {
+    displayName: 'Web Page',
     description: 'Import content from any web page by URL.',
     urlLabel: 'Page URL',
     urlPlaceholder: 'https://example.com/page',
@@ -72,6 +76,7 @@ const TYPE_CONFIG: Record<
     hasMaxEpisodes: false,
   },
   [SourceType.GITHUB]: {
+    displayName: 'GitHub',
     description: "Import a GitHub repository's content.",
     urlLabel: 'Repository URL',
     urlPlaceholder: 'https://github.com/owner/repo',
@@ -81,6 +86,7 @@ const TYPE_CONFIG: Record<
     hasMaxEpisodes: false,
   },
   [SourceType.TEAMS]: {
+    displayName: 'Teams',
     description: 'Upload exported Teams data (JSON or CSV).',
     urlLabel: '',
     urlPlaceholder: '',
@@ -247,7 +253,7 @@ export function ImportDialog({ onImported }: ImportDialogProps) {
                     const disabled = conn ? !conn.enabled : false;
                     return (
                       <SelectItem key={type} value={type} disabled={disabled}>
-                        {cfg.submitLabel.replace(/^(Import |Upload & |Connect)/, '').trim() || type}
+                        {cfg.displayName}
                         {disabled && ' (not enabled)'}
                       </SelectItem>
                     );
