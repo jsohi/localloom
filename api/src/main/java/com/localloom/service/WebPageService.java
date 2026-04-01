@@ -7,7 +7,6 @@ import com.localloom.model.ContentType;
 import com.localloom.model.ContentUnit;
 import com.localloom.model.ContentUnitStatus;
 import com.localloom.model.FragmentType;
-import com.localloom.model.Source;
 import com.localloom.model.SourceType;
 import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentFragmentRepository;
@@ -34,7 +33,8 @@ public class WebPageService {
 
   private static final Logger log = LogManager.getLogger(WebPageService.class);
   private static final int CONNECT_TIMEOUT_MS = 15_000;
-  private static final Pattern HEADING_PATTERN = Pattern.compile("^h[1-6]$", Pattern.CASE_INSENSITIVE);
+  private static final Pattern HEADING_PATTERN =
+      Pattern.compile("^h[1-6]$", Pattern.CASE_INSENSITIVE);
 
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
@@ -66,16 +66,16 @@ public class WebPageService {
     log.info("Starting web page import: sourceId={}", sourceId);
 
     try {
-      final var source = sourceRepository.findById(sourceId)
-          .orElseThrow(() -> new IllegalArgumentException("Source not found: " + sourceId));
+      final var source =
+          sourceRepository
+              .findById(sourceId)
+              .orElseThrow(() -> new IllegalArgumentException("Source not found: " + sourceId));
 
       final var url = source.getOriginUrl();
       log.info("Fetching web page: {}", url);
 
-      final var doc = Jsoup.connect(url)
-          .timeout(CONNECT_TIMEOUT_MS)
-          .userAgent("LocalLoom/1.0")
-          .get();
+      final var doc =
+          Jsoup.connect(url).timeout(CONNECT_TIMEOUT_MS).userAgent("LocalLoom/1.0").get();
 
       final var title = doc.title().isBlank() ? source.getName() : doc.title();
       final var body = doc.body();
@@ -84,58 +84,67 @@ public class WebPageService {
       }
       final var fullText = body.text();
 
-      tx.executeWithoutResult(s -> {
-        if (source.getDescription() == null) {
-          final var metaDesc = doc.select("meta[name=description]").attr("content");
-          if (!metaDesc.isBlank()) {
-            source.setDescription(metaDesc);
-          }
-        }
-        source.setSyncStatus(SyncStatus.SYNCING);
-        sourceRepository.save(source);
-      });
+      tx.executeWithoutResult(
+          s -> {
+            if (source.getDescription() == null) {
+              final var metaDesc = doc.select("meta[name=description]").attr("content");
+              if (!metaDesc.isBlank()) {
+                source.setDescription(metaDesc);
+              }
+            }
+            source.setSyncStatus(SyncStatus.SYNCING);
+            sourceRepository.save(source);
+          });
 
-      final var unit = tx.execute(s -> {
-        var cu = new ContentUnit();
-        cu.setSource(source);
-        cu.setTitle(title);
-        cu.setContentType(ContentType.PAGE);
-        cu.setExternalId(url);
-        cu.setExternalUrl(url);
-        cu.setStatus(ContentUnitStatus.EXTRACTING);
-        cu.setPublishedAt(Instant.now());
-        cu.setRawText(fullText);
-        return contentUnitRepository.save(cu);
-      });
+      final var unit =
+          tx.execute(
+              s -> {
+                var cu = new ContentUnit();
+                cu.setSource(source);
+                cu.setTitle(title);
+                cu.setContentType(ContentType.PAGE);
+                cu.setExternalId(url);
+                cu.setExternalUrl(url);
+                cu.setStatus(ContentUnitStatus.EXTRACTING);
+                cu.setPublishedAt(Instant.now());
+                cu.setRawText(fullText);
+                return contentUnitRepository.save(cu);
+              });
 
       final var fragments = createFragments(unit, doc);
 
-      tx.executeWithoutResult(s -> {
-        unit.setStatus(ContentUnitStatus.EMBEDDING);
-        contentUnitRepository.save(unit);
-      });
+      tx.executeWithoutResult(
+          s -> {
+            unit.setStatus(ContentUnitStatus.EMBEDDING);
+            contentUnitRepository.save(unit);
+          });
 
       embeddingService.embedContent(
           source.getId(), unit.getId(), title, SourceType.WEB_PAGE, ContentType.PAGE, fragments);
 
-      tx.executeWithoutResult(s -> {
-        unit.setStatus(ContentUnitStatus.INDEXED);
-        contentUnitRepository.save(unit);
-        source.setSyncStatus(SyncStatus.IDLE);
-        source.setLastSyncedAt(Instant.now());
-        sourceRepository.save(source);
-      });
+      tx.executeWithoutResult(
+          s -> {
+            unit.setStatus(ContentUnitStatus.INDEXED);
+            contentUnitRepository.save(unit);
+            source.setSyncStatus(SyncStatus.IDLE);
+            source.setLastSyncedAt(Instant.now());
+            sourceRepository.save(source);
+          });
 
       jobService.completeJob(jobId);
       log.info("Web page import complete: sourceId={} title='{}'", sourceId, title);
 
     } catch (Exception e) {
       log.error("Web page import failed: sourceId={}: {}", sourceId, e.getMessage(), e);
-      sourceRepository.findById(sourceId).ifPresent(s ->
-          tx.executeWithoutResult(status -> {
-            s.setSyncStatus(SyncStatus.ERROR);
-            sourceRepository.save(s);
-          }));
+      sourceRepository
+          .findById(sourceId)
+          .ifPresent(
+              s ->
+                  tx.executeWithoutResult(
+                      status -> {
+                        s.setSyncStatus(SyncStatus.ERROR);
+                        sourceRepository.save(s);
+                      }));
       jobService.failJob(jobId, e.getMessage());
     }
 
@@ -148,33 +157,35 @@ public class WebPageService {
       // No headings found — treat the whole page as one fragment
       final var text = doc.body().text().strip();
       if (text.isEmpty()) return List.of();
-      return tx.execute(s -> {
-        var fragment = new ContentFragment();
-        fragment.setContentUnit(unit);
-        fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
-        fragment.setSequenceIndex(0);
-        fragment.setText(text);
-        fragment.setLocation(toJson(Map.of("section", "full page")));
-        return List.of(contentFragmentRepository.save(fragment));
-      });
+      return tx.execute(
+          s -> {
+            var fragment = new ContentFragment();
+            fragment.setContentUnit(unit);
+            fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
+            fragment.setSequenceIndex(0);
+            fragment.setText(text);
+            fragment.setLocation(toJson(Map.of("section", "full page")));
+            return List.of(contentFragmentRepository.save(fragment));
+          });
     }
 
-    return tx.execute(s -> {
-      final var fragments = new ArrayList<ContentFragment>(sections.size());
-      for (var i = 0; i < sections.size(); i++) {
-        final var section = sections.get(i);
-        final var sectionText = section.text().strip();
-        if (sectionText.isEmpty()) continue;
-        var fragment = new ContentFragment();
-        fragment.setContentUnit(unit);
-        fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
-        fragment.setSequenceIndex(i);
-        fragment.setText(sectionText);
-        fragment.setLocation(toJson(Map.of("section", section.heading())));
-        fragments.add(contentFragmentRepository.save(fragment));
-      }
-      return fragments;
-    });
+    return tx.execute(
+        s -> {
+          final var fragments = new ArrayList<ContentFragment>(sections.size());
+          for (var i = 0; i < sections.size(); i++) {
+            final var section = sections.get(i);
+            final var sectionText = section.text().strip();
+            if (sectionText.isEmpty()) continue;
+            var fragment = new ContentFragment();
+            fragment.setContentUnit(unit);
+            fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
+            fragment.setSequenceIndex(i);
+            fragment.setText(sectionText);
+            fragment.setLocation(toJson(Map.of("section", section.heading())));
+            fragments.add(contentFragmentRepository.save(fragment));
+          }
+          return fragments;
+        });
   }
 
   private record Section(String heading, String text) {}
