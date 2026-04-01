@@ -108,6 +108,10 @@ docker-logs:
 logs:
 	@tail -f logs/api.log logs/ml-sidecar.log 2>/dev/null || echo "No log files found. Start services first with 'make start' or 'make start-dev'."
 
+## logs-export: Export all logs (app files + Docker stdout) to logs/export/.
+logs-export:
+	@bash scripts/logs-export.sh
+
 # ── Clean ────────────────────────────────────────────────────────────────────
 ## clean: Remove all build artifacts.
 clean:
