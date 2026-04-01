@@ -103,7 +103,10 @@ services:
       start_period: 30s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8080
     image: localloom/frontend:${VERSION:-latest}
     restart: unless-stopped
     <<: *default-logging

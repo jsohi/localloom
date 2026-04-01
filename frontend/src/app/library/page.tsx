@@ -68,9 +68,9 @@ export default function LibraryPage() {
 
       <main className="flex-1 space-y-6 p-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Podcast Library</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Library</h2>
           <p className="text-muted-foreground">
-            Manage your podcast sources and track indexing progress.
+            Manage your knowledge sources and track indexing progress.
           </p>
         </div>
 
@@ -86,7 +86,7 @@ export default function LibraryPage() {
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16">
             <BookOpenIcon className="text-muted-foreground mb-4 size-12" />
             <h3 className="text-lg font-semibold">No sources yet</h3>
-            <p className="text-muted-foreground mb-4 text-sm">Import a podcast to get started.</p>
+            <p className="text-muted-foreground mb-4 text-sm">Import a source to get started.</p>
             <ImportDialog
               onImported={() => {
                 loadSources();

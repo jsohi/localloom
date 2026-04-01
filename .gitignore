@@ -26,6 +26,7 @@ logs/
 *.db
 *.sqlite
 *.wav
+!test-fixtures/*.wav
 *.mp3
 
 # IDE

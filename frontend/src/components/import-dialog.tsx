@@ -101,7 +101,7 @@ export function ImportDialog({ onImported }: ImportDialogProps) {
       <DialogTrigger asChild>
         <Button>
           <PlusIcon className="mr-2 size-4" />
-          Import Podcast
+          Import Source
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

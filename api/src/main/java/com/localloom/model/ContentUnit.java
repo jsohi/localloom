@@ -1,5 +1,6 @@
 package com.localloom.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,6 +31,7 @@ public class ContentUnit {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
+  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "source_id", nullable = false)
   private Source source;
@@ -62,6 +64,7 @@ public class ContentUnit {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
+  @JsonIgnore
   @OneToMany(mappedBy = "contentUnit", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ContentFragment> fragments = new ArrayList<>();
 
