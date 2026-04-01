@@ -1,8 +1,10 @@
 package com.localloom.service;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -71,6 +73,14 @@ class MlSidecarClientTest {
       assertThat(result.segments()).hasSize(2);
       assertThat(result.segments().getFirst().text()).isEqualTo("Hello world");
       assertThat(result.duration()).isEqualTo(10.0);
+
+      // Verify the multipart field name matches what the Python sidecar expects
+      wireMock.verify(
+          postRequestedFor(urlEqualTo("/transcribe"))
+              .withRequestBodyPart(
+                  new com.github.tomakehurst.wiremock.matching.MultipartValuePatternBuilder("audio_file")
+                      .withBody(containing("fake audio data"))
+                      .build()));
     } finally {
       Files.deleteIfExists(tmpFile);
     }

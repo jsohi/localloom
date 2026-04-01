@@ -3,8 +3,10 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
 const API = 'http://localhost:8080';
 const FIXTURE_RSS = 'http://test-fixtures/rss-feed.xml';
 const SOURCE_NAME = 'E2E Test Podcast';
+const E2E_CHAT_QUERY = 'What content has been indexed?';
 
 let sourceId: string;
+let testConversationIds: string[] = [];
 let api: APIRequestContext;
 
 test.describe.serial('Import Pipeline', () => {
@@ -22,7 +24,7 @@ test.describe.serial('Import Pipeline', () => {
     const convRes = await api.get('/api/v1/conversations');
     if (convRes.ok()) {
       const convs = await convRes.json();
-      for (const c of convs) {
+      for (const c of convs.filter((c: { title: string }) => c.title === E2E_CHAT_QUERY)) {
         await api.delete(`/api/v1/conversations/${c.id}`);
       }
     }
@@ -33,12 +35,8 @@ test.describe.serial('Import Pipeline', () => {
     if (sourceId) {
       await api.delete(`/api/v1/sources/${sourceId}`).catch(() => {});
     }
-    const convRes = await api.get('/api/v1/conversations');
-    if (convRes.ok()) {
-      const convs = await convRes.json();
-      for (const c of convs) {
-        await api.delete(`/api/v1/conversations/${c.id}`).catch(() => {});
-      }
+    for (const id of testConversationIds) {
+      await api.delete(`/api/v1/conversations/${id}`).catch(() => {});
     }
     await api.dispose();
   });
@@ -115,5 +113,14 @@ test.describe.serial('Import Pipeline', () => {
     await expect(
       page.locator('[class*="bg-muted"]').filter({ hasText: /.{10,}/ }),
     ).toBeVisible({ timeout: 90_000 });
+
+    // Track test-created conversations for cleanup
+    const convRes = await api.get('/api/v1/conversations');
+    if (convRes.ok()) {
+      const convs = await convRes.json();
+      testConversationIds = convs
+        .filter((c: { title: string }) => c.title === E2E_CHAT_QUERY)
+        .map((c: { id: string }) => c.id);
+    }
   });
 });
