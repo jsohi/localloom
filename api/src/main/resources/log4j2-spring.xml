@@ -1,23 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
+    <Properties>
+        <Property name="LOG_DIR">${sys:LOG_DIR:-logs}</Property>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}{UTC} [api] %-5level [%X{requestId:--}] %logger{36} - %msg%n</Property>
+    </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <PatternLayout pattern="${LOG_PATTERN}"/>
         </Console>
+        <RollingFile name="File"
+                     fileName="${LOG_DIR}/api.log"
+                     filePattern="${LOG_DIR}/api-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7"/>
+        </RollingFile>
         <Async name="AsyncConsole">
             <AppenderRef ref="Console"/>
+        </Async>
+        <Async name="AsyncFile">
+            <AppenderRef ref="File"/>
         </Async>
     </Appenders>
     <Loggers>
         <Logger name="com.localloom" level="DEBUG" additivity="false">
             <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncFile"/>
         </Logger>
         <Logger name="org.springframework" level="INFO" additivity="false">
             <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncFile"/>
         </Logger>
         <Root level="WARN">
             <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncFile"/>
         </Root>
     </Loggers>
 </Configuration>
-

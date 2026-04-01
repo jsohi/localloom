@@ -29,10 +29,10 @@ WORKDIR /app
 COPY --from=build /workspace/build/libs/localloom-api-*.jar app.jar
 
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
-    mkdir -p /app/data/audio && chown -R appuser:appuser /app
+    mkdir -p /app/data/audio /app/logs && chown -R appuser:appuser /app
 
 USER appuser
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "--enable-native-access=ALL-UNNAMED", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java --enable-native-access=ALL-UNNAMED -DLOG_DIR=${LOG_DIR:-/app/logs} -jar app.jar"]

@@ -10,7 +10,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 RUN groupadd -r appuser && useradd -r -g appuser -m appuser && \
-    mkdir -p /app/data/models /app/data/tts_output && \
+    mkdir -p /app/data/models /app/data/tts_output /app/logs && \
     chown -R appuser:appuser /app
 
 COPY --chown=appuser:appuser app app
@@ -19,4 +19,4 @@ USER appuser
 
 EXPOSE 8100
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100"]
+CMD ["uv", "run", "python", "-m", "app.main"]

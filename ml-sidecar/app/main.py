@@ -1,14 +1,36 @@
 import logging
+import re
+import uuid
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.endpoints import health, transcribe, tts
+from app.logging_config import configure_logging, request_id_var
+
+configure_logging()
 
 logger = logging.getLogger(__name__)
+
+
+_VALID_ID = re.compile(r"^[a-zA-Z0-9\-]{1,36}$")
+
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        raw_id = request.headers.get("X-Request-Id", "")
+        request_id = raw_id if _VALID_ID.match(raw_id) else uuid.uuid4().hex[:8]
+        token = request_id_var.set(request_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-Id"] = request_id
+            return response
+        finally:
+            request_id_var.reset(token)
 
 
 @asynccontextmanager
@@ -19,6 +41,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LocalLoom ML Sidecar", lifespan=lifespan)
+
+app.add_middleware(RequestIdMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,4 +63,10 @@ app.include_router(tts.router)
 
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=False)
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=False,
+        log_config=None,
+    )

@@ -84,4 +84,20 @@ echo "==> Running E2E tests..."
 echo "    Model: $CHAT_MODEL"
 echo "    Base URL: http://localhost:3000"
 echo ""
-npx playwright test "$@"
+
+TEST_EXIT=0
+npx playwright test "$@" || TEST_EXIT=$?
+
+# ── Collect all logs ───────────────────────────────────────────────────────
+source "$REPO_ROOT/scripts/_collect-logs.sh"
+
+LOG_DIR="$TMPDIR/localloom-e2e-logs-$(date +%Y%m%d-%H%M%S)"
+echo ""
+echo "==> Collecting logs..."
+collect_logs "$COMPOSE_FILES" "$LOG_DIR"
+
+if [ -d "$REPO_ROOT/frontend/e2e-results" ]; then
+  cp -r "$REPO_ROOT/frontend/e2e-results" "$LOG_DIR/playwright/"
+fi
+
+exit $TEST_EXIT
