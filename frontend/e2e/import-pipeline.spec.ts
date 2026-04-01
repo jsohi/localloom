@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
-const API = 'http://localhost:8080';
+const API = process.env.API_URL || 'http://localhost:8080';
 const FIXTURE_RSS = 'http://test-fixtures/rss-feed.xml';
 const SOURCE_NAME = 'E2E Test Podcast';
 const E2E_CHAT_QUERY = 'What content has been indexed?';

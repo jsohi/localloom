@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
-const API = 'http://localhost:8080';
+const API = process.env.API_URL || 'http://localhost:8080';
 
 test.describe('Connectors API', () => {
   let api: APIRequestContext;

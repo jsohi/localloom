@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
-const API = 'http://localhost:8080';
+const API = process.env.API_URL || 'http://localhost:8080';
 const FIXTURE_URL = 'http://test-fixtures/test-page.html';
 const SOURCE_NAME = 'E2E Test Web Page';
 

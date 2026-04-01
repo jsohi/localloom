@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import path from 'path';
 
-const API = 'http://localhost:8080';
+const API = process.env.API_URL || 'http://localhost:8080';
 const SOURCE_NAME = 'E2E Test PDF Upload';
 
 let sourceId: string;
