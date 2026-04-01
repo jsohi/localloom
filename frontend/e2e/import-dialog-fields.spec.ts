@@ -35,19 +35,17 @@ test.describe('Import Dialog Fields', () => {
     await expect(page.getByRole('button', { name: /Import Page/ })).toBeVisible();
   });
 
-  test('github shows URL and disabled hint when connector off', async ({ page }) => {
+  test('github option is disabled when connector off', async ({ page }) => {
     await page.getByLabel('Source Type').click();
-    await page.getByRole('option', { name: /GitHub/ }).click();
-
-    await expect(page.getByText(/not enabled/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Import Repo/ })).toBeDisabled();
+    const githubOption = page.getByRole('option', { name: /GitHub/ });
+    await expect(githubOption).toBeVisible();
+    await expect(githubOption).toBeDisabled();
   });
 
-  test('teams shows disabled hint when connector off', async ({ page }) => {
+  test('teams option is disabled when connector off', async ({ page }) => {
     await page.getByLabel('Source Type').click();
-    await page.getByRole('option', { name: /Teams/ }).click();
-
-    await expect(page.getByText(/not enabled/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Upload & Import/ })).toBeDisabled();
+    const teamsOption = page.getByRole('option', { name: /Teams/ });
+    await expect(teamsOption).toBeVisible();
+    await expect(teamsOption).toBeDisabled();
   });
 });
