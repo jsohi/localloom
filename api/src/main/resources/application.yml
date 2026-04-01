@@ -74,7 +74,7 @@ localloom:
     file-upload:
       enabled: true
     web-page:
-      enabled: true
+      enabled: false
     teams:
       enabled: false
     github:

@@ -28,26 +28,26 @@ test.describe('Connectors API', () => {
     expect(types).toContain('TEAMS');
   });
 
-  test('podcast, file upload, and web page are enabled by default', async () => {
+  test('podcast and file upload are enabled by default', async () => {
     const res = await api.get('/api/v1/connectors');
     const connectors = await res.json();
 
     const podcast = connectors.find((c: { type: string }) => c.type === 'PODCAST');
     const fileUpload = connectors.find((c: { type: string }) => c.type === 'FILE_UPLOAD');
-    const webPage = connectors.find((c: { type: string }) => c.type === 'WEB_PAGE');
 
     expect(podcast.enabled).toBe(true);
     expect(fileUpload.enabled).toBe(true);
-    expect(webPage.enabled).toBe(true);
   });
 
-  test('github and teams are disabled by default', async () => {
+  test('web page, github, and teams are disabled by default', async () => {
     const res = await api.get('/api/v1/connectors');
     const connectors = await res.json();
 
+    const webPage = connectors.find((c: { type: string }) => c.type === 'WEB_PAGE');
     const github = connectors.find((c: { type: string }) => c.type === 'GITHUB');
     const teams = connectors.find((c: { type: string }) => c.type === 'TEAMS');
 
+    expect(webPage.enabled).toBe(false);
     expect(github.enabled).toBe(false);
     expect(teams.enabled).toBe(false);
   });

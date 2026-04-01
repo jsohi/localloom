@@ -89,11 +89,18 @@ public class SourceImportService {
 
       return switch (source.getSourceType()) {
         case PODCAST -> importPodcastSource(source, jobId, maxEpisodes);
-        case FILE_UPLOAD, TEAMS ->
-            CompletableFuture.completedFuture(null); // handled by FileUploadService
-        case WEB_PAGE, GITHUB ->
-            throw new UnsupportedOperationException(
-                "Connector not yet implemented: " + source.getSourceType());
+        case FILE_UPLOAD, TEAMS -> {
+          // These types use the /upload endpoint; if created via /sources with a URL,
+          // mark as idle since there's nothing to import asynchronously.
+          finishSource(source, SyncStatus.IDLE);
+          jobService.completeJob(jobId);
+          yield CompletableFuture.completedFuture(null);
+        }
+        case WEB_PAGE, GITHUB -> {
+          finishSource(source, SyncStatus.ERROR);
+          jobService.failJob(jobId, "Connector not yet implemented: " + source.getSourceType());
+          yield CompletableFuture.completedFuture(null);
+        }
       };
 
     } catch (Exception e) {
@@ -123,7 +130,11 @@ public class SourceImportService {
       final var limit = maxEpisodes != null ? maxEpisodes : defaultMaxEpisodes;
       var episodes = resolved.episodes();
       if (limit > 0 && episodes.size() > limit) {
-        log.info("Limiting import to {} of {} episodes for sourceId={}", limit, episodes.size(), sourceId);
+        log.info(
+            "Limiting import to {} of {} episodes for sourceId={}",
+            limit,
+            episodes.size(),
+            sourceId);
         episodes = episodes.subList(0, limit);
       }
       if (episodes.isEmpty()) {
@@ -179,11 +190,7 @@ public class SourceImportService {
 
     } catch (Exception e) {
       log.error(
-          "Podcast import failed: sourceId={} jobId={}: {}",
-          sourceId,
-          jobId,
-          e.getMessage(),
-          e);
+          "Podcast import failed: sourceId={} jobId={}: {}", sourceId, jobId, e.getMessage(), e);
       sourceRepository.findById(sourceId).ifPresent(s -> finishSource(s, SyncStatus.ERROR));
       jobService.failJob(jobId, e.getMessage());
     }

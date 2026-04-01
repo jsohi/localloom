@@ -112,14 +112,15 @@ public class SourceController {
       @RequestParam("file") final MultipartFile file,
       @RequestParam(value = "name", required = false) final String name,
       @RequestParam(value = "sourceType", required = false) final String sourceTypeParam) {
-    final var filename =
-        file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
+    final var filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
     final var displayName = (name != null && !name.isBlank()) ? name : filename;
     SourceType sourceType;
     try {
-      sourceType = sourceTypeParam != null ? SourceType.valueOf(sourceTypeParam) : SourceType.FILE_UPLOAD;
+      sourceType =
+          sourceTypeParam != null ? SourceType.valueOf(sourceTypeParam) : SourceType.FILE_UPLOAD;
     } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid sourceType: " + sourceTypeParam);
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Invalid sourceType: " + sourceTypeParam);
     }
 
     log.info(
@@ -129,10 +130,8 @@ public class SourceController {
         file.getSize(),
         sourceType);
 
-    final var result = fileUploadService.processUpload(file, displayName, sourceType);
-    final var job =
-        jobService.createJob(JobType.SYNC, result.sourceId(), EntityType.SOURCE);
-    jobService.completeJob(job.getId());
+    final var result = fileUploadService.storeAndProcess(file, displayName, sourceType);
+    final var job = jobService.createJob(JobType.SYNC, result.sourceId(), EntityType.SOURCE);
 
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(Map.of("source_id", result.sourceId(), "job_id", job.getId()));
@@ -212,8 +211,7 @@ public class SourceController {
     }
     // FILE_UPLOAD and TEAMS may use the upload endpoint instead, so originUrl is optional
     final var urlRequired =
-        request.sourceType() != SourceType.FILE_UPLOAD
-            && request.sourceType() != SourceType.TEAMS;
+        request.sourceType() != SourceType.FILE_UPLOAD && request.sourceType() != SourceType.TEAMS;
     if (urlRequired && (request.originUrl() == null || request.originUrl().isBlank())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "originUrl is required");
     }

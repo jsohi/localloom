@@ -1,5 +1,7 @@
 package com.localloom.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.localloom.model.ContentFragment;
 import com.localloom.model.ContentType;
 import com.localloom.model.ContentUnit;
@@ -11,8 +13,6 @@ import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentFragmentRepository;
 import com.localloom.repository.ContentUnitRepository;
 import com.localloom.repository.SourceRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,12 +21,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,6 +38,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileUploadService {
 
   private static final Logger log = LogManager.getLogger(FileUploadService.class);
+
+  private static final Set<String> SUPPORTED_TEXT_EXTENSIONS =
+      Set.of(".txt", ".md", ".csv", ".json", ".xml", ".html", ".htm", ".yml", ".yaml");
 
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
@@ -61,20 +67,25 @@ public class FileUploadService {
     this.uploadDir = Path.of(uploadDirPath);
   }
 
-  public record UploadResult(UUID sourceId, Source source) {}
+  public record UploadResult(UUID sourceId) {}
 
-  public UploadResult processUpload(
+  /**
+   * Stores the uploaded file, creates the Source record, and kicks off async processing. Returns
+   * immediately with the source ID so the HTTP response is not blocked.
+   */
+  public UploadResult storeAndProcess(
       final MultipartFile file, final String name, final SourceType sourceType) {
     try {
       Files.createDirectories(uploadDir);
 
       final var rawName =
           file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload";
-      // Sanitize: strip path separators to prevent directory traversal
       final var filename = Path.of(rawName).getFileName().toString();
+
+      validateFileType(filename);
+
       final var storedPath = uploadDir.resolve(UUID.randomUUID() + "_" + filename);
       file.transferTo(storedPath);
-
       log.info("File stored at: {} ({})", storedPath, file.getSize());
 
       final var source =
@@ -88,6 +99,24 @@ public class FileUploadService {
                 return sourceRepository.save(src);
               });
 
+      processAsync(source.getId(), storedPath, filename, name, sourceType);
+
+      return new UploadResult(source.getId());
+
+    } catch (IOException e) {
+      throw new FileUploadException("Failed to store uploaded file: " + e.getMessage(), e);
+    }
+  }
+
+  @Async
+  public CompletableFuture<Void> processAsync(
+      final UUID sourceId,
+      final Path storedPath,
+      final String filename,
+      final String name,
+      final SourceType sourceType) {
+    try {
+      final var source = sourceRepository.findById(sourceId).orElseThrow();
       final var text = extractText(storedPath, filename);
 
       final var unit =
@@ -105,7 +134,7 @@ public class FileUploadService {
                 return contentUnitRepository.save(cu);
               });
 
-      final var fragments = createFragments(unit, text, filename);
+      final var fragments = createFragments(unit, storedPath, filename);
 
       tx.executeWithoutResult(
           s -> {
@@ -114,12 +143,7 @@ public class FileUploadService {
           });
 
       embeddingService.embedContent(
-          source.getId(),
-          unit.getId(),
-          name,
-          sourceType,
-          ContentType.TEXT_FILE,
-          fragments);
+          source.getId(), unit.getId(), name, sourceType, ContentType.TEXT_FILE, fragments);
 
       tx.executeWithoutResult(
           s -> {
@@ -131,10 +155,34 @@ public class FileUploadService {
           });
 
       log.info("File upload complete: sourceId={} filename={}", source.getId(), filename);
-      return new UploadResult(source.getId(), source);
 
-    } catch (IOException e) {
-      throw new FileUploadException("Failed to process uploaded file: " + e.getMessage(), e);
+    } catch (Exception e) {
+      log.error("File upload processing failed: sourceId={}: {}", sourceId, e.getMessage(), e);
+      sourceRepository
+          .findById(sourceId)
+          .ifPresent(
+              s ->
+                  tx.executeWithoutResult(
+                      status -> {
+                        s.setSyncStatus(SyncStatus.ERROR);
+                        sourceRepository.save(s);
+                      }));
+    }
+    return CompletableFuture.completedFuture(null);
+  }
+
+  private void validateFileType(final String filename) {
+    final var lowerName = filename.toLowerCase();
+    if (lowerName.endsWith(".pdf")) return;
+    final var supported =
+        SUPPORTED_TEXT_EXTENSIONS.stream().anyMatch(lowerName::endsWith);
+    if (!supported) {
+      throw new FileUploadException(
+          "Unsupported file type: "
+              + filename
+              + ". Supported: PDF, "
+              + String.join(", ", SUPPORTED_TEXT_EXTENSIONS),
+          null);
     }
   }
 
@@ -154,33 +202,45 @@ public class FileUploadService {
   }
 
   private List<ContentFragment> createFragments(
-      final ContentUnit unit, final String text, final String filename) {
+      final ContentUnit unit, final Path storedPath, final String filename) throws IOException {
     final var lowerName = filename.toLowerCase();
     if (lowerName.endsWith(".pdf")) {
-      return createPdfFragments(unit, text);
+      return createPdfFragments(unit, storedPath);
     }
+    final var text = Files.readString(storedPath, StandardCharsets.UTF_8);
     return createSingleFragment(unit, text, filename);
   }
 
-  private List<ContentFragment> createPdfFragments(final ContentUnit unit, final String fullText) {
-    // Split by form feed (page break) if present, otherwise treat as single page
-    final var pages = fullText.split("\\f");
-    return tx.execute(
-        s -> {
-          final var fragments = new ArrayList<ContentFragment>(pages.length);
-          for (var i = 0; i < pages.length; i++) {
-            final var pageText = pages[i].strip();
-            if (pageText.isEmpty()) continue;
-            var fragment = new ContentFragment();
-            fragment.setContentUnit(unit);
-            fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
-            fragment.setSequenceIndex(i);
-            fragment.setText(pageText);
-            fragment.setLocation(toJson(Map.of("page", i + 1)));
-            fragments.add(contentFragmentRepository.save(fragment));
-          }
-          return fragments;
-        });
+  private List<ContentFragment> createPdfFragments(
+      final ContentUnit unit, final Path filePath) throws IOException {
+    try (var document = Loader.loadPDF(filePath.toFile())) {
+      final var pageCount = document.getNumberOfPages();
+      return tx.execute(
+          s -> {
+            final var fragments = new ArrayList<ContentFragment>(pageCount);
+            var stripper = new PDFTextStripper();
+            for (var i = 1; i <= pageCount; i++) {
+              stripper.setStartPage(i);
+              stripper.setEndPage(i);
+              String pageText;
+              try {
+                pageText = stripper.getText(document).strip();
+              } catch (IOException e) {
+                log.warn("Failed to extract text from page {}: {}", i, e.getMessage());
+                continue;
+              }
+              if (pageText.isEmpty()) continue;
+              var fragment = new ContentFragment();
+              fragment.setContentUnit(unit);
+              fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
+              fragment.setSequenceIndex(i - 1);
+              fragment.setText(pageText);
+              fragment.setLocation(toJson(Map.of("page", i)));
+              fragments.add(contentFragmentRepository.save(fragment));
+            }
+            return fragments;
+          });
+    }
   }
 
   private List<ContentFragment> createSingleFragment(
