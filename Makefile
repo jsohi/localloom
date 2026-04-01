@@ -61,6 +61,10 @@ build:
 # ── Push (pre-flight checks) ────────────────────────────────────────────────
 ## push: Run format + lint + test for all services, then git push. Use this instead of raw git push.
 push:
+	@if [ "$$(git branch --show-current)" = "main" ] || [ "$$(git branch --show-current)" = "master" ]; then \
+		echo "ERROR: Do not push directly to main. Create a feature branch first."; \
+		exit 1; \
+	fi
 	@echo "==> Step 1/4: Formatting"
 	cd api && ./gradlew spotlessApply
 	cd ml-sidecar && uv run ruff format . 2>/dev/null || true
