@@ -36,7 +36,7 @@ public class MlSidecarClient {
     log.info("Sending transcription request for file: {}", audioFile);
 
     final var body = new LinkedMultiValueMap<String, Object>();
-    body.add("file", new FileSystemResource(audioFile));
+    body.add("audio_file", new FileSystemResource(audioFile));
 
     try {
       final var response =

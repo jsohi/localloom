@@ -63,7 +63,8 @@ for model in "$CHAT_MODEL" "$EMBED_MODEL"; do
 done
 
 # ── Docker services ─────────────────────────────────────────────────────────
-echo "==> Starting Docker services..."
+echo "==> Building and starting Docker services..."
+docker compose $COMPOSE_FILES build || { echo "ERROR: Docker build failed"; exit 1; }
 docker compose $COMPOSE_FILES up -d --wait --wait-timeout 120 || {
   echo "ERROR: Services failed to start. Logs:"
   docker compose $COMPOSE_FILES logs --tail=20
