@@ -39,7 +39,7 @@ class WhisperService:
                 model_name,
                 download_root=settings.model_dir,
                 device="auto",
-                compute_type="default",
+                compute_type=settings.whisper_compute_type,
             )
             elapsed = time.monotonic() - t0
             logger.info("Whisper model '%s' loaded in %.2fs", model_name, elapsed)

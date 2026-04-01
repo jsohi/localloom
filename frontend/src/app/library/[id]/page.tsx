@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeftIcon, MicIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,6 +52,7 @@ function DetailSkeleton() {
 
 export default function SourceDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [source, setSource] = useState<Source | null>(null);
   const [contentUnits, setContentUnits] = useState<ContentUnit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +63,9 @@ export default function SourceDetailPage() {
       setSource(data.source);
       setContentUnits(data.contentUnits);
     } catch {
-      toast.error('Failed to load source details');
+      toast.error('Source not found');
+      router.replace('/library');
+      return;
     } finally {
       setLoading(false);
     }

@@ -26,9 +26,12 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
   });
 
   if (!response.ok) {
-    logger.error(
-      `API ${options?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`,
-    );
+    const msg = `API ${options?.method ?? 'GET'} ${url} failed: ${response.status} ${response.statusText}`;
+    if (response.status === 404) {
+      logger.warn(msg);
+    } else {
+      logger.error(msg);
+    }
     throw new Error(`API error ${response.status}: ${response.statusText}`);
   }
 

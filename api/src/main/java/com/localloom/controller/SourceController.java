@@ -117,7 +117,9 @@ public class SourceController {
     SourceType sourceType;
     try {
       sourceType =
-          sourceTypeParam != null ? SourceType.valueOf(sourceTypeParam) : SourceType.FILE_UPLOAD;
+          sourceTypeParam != null
+              ? SourceType.valueOf(sourceTypeParam.toUpperCase())
+              : SourceType.FILE_UPLOAD;
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Invalid sourceType: " + sourceTypeParam);

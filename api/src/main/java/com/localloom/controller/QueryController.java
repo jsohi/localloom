@@ -19,7 +19,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class QueryController {
 
   private static final Logger log = LogManager.getLogger(QueryController.class);
-  private static final long SSE_TIMEOUT_MS = 120_000L;
+  private static final long SSE_TIMEOUT_MS = 300_000L; // 5 min for large models
 
   private final QueryService queryService;
   private final ConversationRepository conversationRepository;

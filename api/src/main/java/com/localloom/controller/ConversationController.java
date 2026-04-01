@@ -4,6 +4,7 @@ import com.localloom.model.Conversation;
 import com.localloom.repository.ConversationRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,12 +47,20 @@ public class ConversationController {
   }
 
   @GetMapping("/{id}")
-  public Conversation getConversation(@PathVariable final UUID id) {
-    return conversationRepository
-        .findByIdWithMessages(id)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found: " + id));
+  public Map<String, Object> getConversation(@PathVariable final UUID id) {
+    final var conversation =
+        conversationRepository
+            .findByIdWithMessages(id)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Conversation not found: " + id));
+    return Map.of(
+        "id", conversation.getId(),
+        "title", conversation.getTitle() != null ? conversation.getTitle() : "",
+        "createdAt", conversation.getCreatedAt(),
+        "updatedAt", conversation.getUpdatedAt(),
+        "messages", conversation.getMessages());
   }
 
   @DeleteMapping("/{id}")

@@ -117,7 +117,7 @@ public class FileUploadService {
       final SourceType sourceType) {
     try {
       final var source = sourceRepository.findById(sourceId).orElseThrow();
-      final var text = extractText(storedPath, filename);
+      final var extraction = extractAndFragment(storedPath, filename);
 
       final var unit =
           tx.execute(
@@ -130,11 +130,11 @@ public class FileUploadService {
                 cu.setExternalUrl("upload://" + filename);
                 cu.setStatus(ContentUnitStatus.EXTRACTING);
                 cu.setPublishedAt(Instant.now());
-                cu.setRawText(text);
+                cu.setRawText(extraction.fullText());
                 return contentUnitRepository.save(cu);
               });
 
-      final var fragments = createFragments(unit, storedPath, filename);
+      final var fragments = saveFragments(unit, extraction.pageTexts(), filename);
 
       tx.executeWithoutResult(
           s -> {
@@ -185,74 +185,56 @@ public class FileUploadService {
     }
   }
 
-  private String extractText(final Path filePath, final String filename) throws IOException {
-    final var lowerName = filename.toLowerCase();
-    if (lowerName.endsWith(".pdf")) {
-      return extractPdfText(filePath);
-    }
-    return Files.readString(filePath, StandardCharsets.UTF_8);
-  }
+  private record ExtractionResult(String fullText, List<String> pageTexts) {}
 
-  private String extractPdfText(final Path filePath) throws IOException {
-    try (var document = Loader.loadPDF(filePath.toFile())) {
-      var stripper = new PDFTextStripper();
-      return stripper.getText(document);
-    }
-  }
-
-  private List<ContentFragment> createFragments(
-      final ContentUnit unit, final Path storedPath, final String filename) throws IOException {
-    final var lowerName = filename.toLowerCase();
-    if (lowerName.endsWith(".pdf")) {
-      return createPdfFragments(unit, storedPath);
-    }
-    final var text = Files.readString(storedPath, StandardCharsets.UTF_8);
-    return createSingleFragment(unit, text, filename);
-  }
-
-  private List<ContentFragment> createPdfFragments(final ContentUnit unit, final Path filePath)
+  /** Single-pass extraction: reads the file once, returns full text + per-page/per-file texts. */
+  private ExtractionResult extractAndFragment(final Path filePath, final String filename)
       throws IOException {
+    if (filename.toLowerCase().endsWith(".pdf")) {
+      return extractPdf(filePath);
+    }
+    final var text = Files.readString(filePath, StandardCharsets.UTF_8);
+    return new ExtractionResult(text, List.of(text));
+  }
+
+  private ExtractionResult extractPdf(final Path filePath) throws IOException {
     try (var document = Loader.loadPDF(filePath.toFile())) {
       final var pageCount = document.getNumberOfPages();
-      return tx.execute(
-          s -> {
-            final var fragments = new ArrayList<ContentFragment>(pageCount);
-            var stripper = new PDFTextStripper();
-            for (var i = 1; i <= pageCount; i++) {
-              stripper.setStartPage(i);
-              stripper.setEndPage(i);
-              String pageText;
-              try {
-                pageText = stripper.getText(document).strip();
-              } catch (IOException e) {
-                log.warn("Failed to extract text from page {}: {}", i, e.getMessage());
-                continue;
-              }
-              if (pageText.isEmpty()) continue;
-              var fragment = new ContentFragment();
-              fragment.setContentUnit(unit);
-              fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
-              fragment.setSequenceIndex(i - 1);
-              fragment.setText(pageText);
-              fragment.setLocation(toJson(Map.of("page", i)));
-              fragments.add(contentFragmentRepository.save(fragment));
-            }
-            return fragments;
-          });
+      final var pages = new ArrayList<String>(pageCount);
+      final var fullText = new StringBuilder();
+      var stripper = new PDFTextStripper();
+      for (var i = 1; i <= pageCount; i++) {
+        stripper.setStartPage(i);
+        stripper.setEndPage(i);
+        final var pageText = stripper.getText(document).strip();
+        if (pageText.isEmpty()) continue;
+        pages.add(pageText);
+        if (!fullText.isEmpty()) fullText.append("\n");
+        fullText.append(pageText);
+      }
+      return new ExtractionResult(fullText.toString(), pages);
     }
   }
 
-  private List<ContentFragment> createSingleFragment(
-      final ContentUnit unit, final String text, final String filename) {
+  private List<ContentFragment> saveFragments(
+      final ContentUnit unit, final List<String> texts, final String filename) {
+    final var isPdf = filename.toLowerCase().endsWith(".pdf");
     return tx.execute(
         s -> {
-          var fragment = new ContentFragment();
-          fragment.setContentUnit(unit);
-          fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
-          fragment.setSequenceIndex(0);
-          fragment.setText(text.strip());
-          fragment.setLocation(toJson(Map.of("file", filename)));
-          return List.of(contentFragmentRepository.save(fragment));
+          final var fragments = new ArrayList<ContentFragment>(texts.size());
+          for (var i = 0; i < texts.size(); i++) {
+            final var text = texts.get(i).strip();
+            if (text.isEmpty()) continue;
+            var fragment = new ContentFragment();
+            fragment.setContentUnit(unit);
+            fragment.setFragmentType(FragmentType.TIMED_SEGMENT);
+            fragment.setSequenceIndex(i);
+            fragment.setText(text);
+            fragment.setLocation(
+                isPdf ? toJson(Map.of("page", i + 1)) : toJson(Map.of("file", filename)));
+            fragments.add(contentFragmentRepository.save(fragment));
+          }
+          return fragments;
         });
   }
 
