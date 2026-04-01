@@ -38,6 +38,7 @@ public class SourceImportService {
   private final AudioService audioService;
   private final MlSidecarClient mlSidecarClient;
   private final EmbeddingService embeddingService;
+  private final WebPageService webPageService;
   private final JobService jobService;
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
@@ -51,6 +52,7 @@ public class SourceImportService {
       final AudioService audioService,
       final MlSidecarClient mlSidecarClient,
       final EmbeddingService embeddingService,
+      final WebPageService webPageService,
       final JobService jobService,
       final SourceRepository sourceRepository,
       final ContentUnitRepository contentUnitRepository,
@@ -62,6 +64,7 @@ public class SourceImportService {
     this.audioService = audioService;
     this.mlSidecarClient = mlSidecarClient;
     this.embeddingService = embeddingService;
+    this.webPageService = webPageService;
     this.jobService = jobService;
     this.sourceRepository = sourceRepository;
     this.contentUnitRepository = contentUnitRepository;
@@ -96,7 +99,8 @@ public class SourceImportService {
           jobService.completeJob(jobId);
           yield CompletableFuture.completedFuture(null);
         }
-        case WEB_PAGE, GITHUB -> {
+        case WEB_PAGE -> webPageService.importWebPage(source.getId(), jobId);
+        case GITHUB -> {
           finishSource(source, SyncStatus.ERROR);
           jobService.failJob(jobId, "Connector not yet implemented: " + source.getSourceType());
           yield CompletableFuture.completedFuture(null);

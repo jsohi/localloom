@@ -120,9 +120,7 @@ export function JobTracker({ refreshKey }: JobTrackerProps) {
         {details.map(({ job, sourceName, totalUnits, completedUnits, currentUnit }) => (
           <div key={job.id} className="bg-muted/50 rounded-lg border p-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="truncate text-sm font-medium">
-                {sourceName ?? job.type}
-              </span>
+              <span className="truncate text-sm font-medium">{sourceName ?? job.type}</span>
               <Badge variant={jobStatusVariant(job.status)} className="ml-2">
                 {job.status}
               </Badge>

@@ -46,6 +46,7 @@ services:
     volumes:
       - ./test-fixtures/rss-feed.xml:/usr/share/nginx/html/rss-feed.xml:ro
       - ./test-fixtures/test-episode.wav:/usr/share/nginx/html/test-episode.wav:ro
+      - ./test-fixtures/test-page.html:/usr/share/nginx/html/test-page.html:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/rss-feed.xml"]
       interval: 3s

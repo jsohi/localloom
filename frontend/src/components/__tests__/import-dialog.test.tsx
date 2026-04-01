@@ -8,7 +8,7 @@ vi.mock('@/lib/api', () => ({
   getConnectors: vi.fn().mockResolvedValue([
     { type: 'PODCAST', name: 'Podcast', enabled: true },
     { type: 'FILE_UPLOAD', name: 'File Upload', enabled: true },
-    { type: 'WEB_PAGE', name: 'Web Page', enabled: false }, // disabled until implemented
+    { type: 'WEB_PAGE', name: 'Web Page', enabled: true },
     { type: 'GITHUB', name: 'GitHub', enabled: false },
     { type: 'TEAMS', name: 'Teams', enabled: false },
   ]),

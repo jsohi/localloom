@@ -174,8 +174,7 @@ public class FileUploadService {
   private void validateFileType(final String filename) {
     final var lowerName = filename.toLowerCase();
     if (lowerName.endsWith(".pdf")) return;
-    final var supported =
-        SUPPORTED_TEXT_EXTENSIONS.stream().anyMatch(lowerName::endsWith);
+    final var supported = SUPPORTED_TEXT_EXTENSIONS.stream().anyMatch(lowerName::endsWith);
     if (!supported) {
       throw new FileUploadException(
           "Unsupported file type: "
@@ -211,8 +210,8 @@ public class FileUploadService {
     return createSingleFragment(unit, text, filename);
   }
 
-  private List<ContentFragment> createPdfFragments(
-      final ContentUnit unit, final Path filePath) throws IOException {
+  private List<ContentFragment> createPdfFragments(final ContentUnit unit, final Path filePath)
+      throws IOException {
     try (var document = Loader.loadPDF(filePath.toFile())) {
       final var pageCount = document.getNumberOfPages();
       return tx.execute(

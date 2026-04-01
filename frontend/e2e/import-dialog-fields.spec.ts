@@ -25,12 +25,14 @@ test.describe('Import Dialog Fields', () => {
     await expect(page.getByRole('button', { name: /Upload & Import/ })).toBeVisible();
   });
 
-  test('web page shows disabled hint when connector off', async ({ page }) => {
+  test('web page shows URL and name fields', async ({ page }) => {
     await page.getByLabel('Source Type').click();
     await page.getByRole('option', { name: /Web Page/ }).click();
 
-    await expect(page.getByText(/not enabled/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Import Page/ })).toBeDisabled();
+    await expect(page.getByLabel('Page URL')).toBeVisible();
+    await expect(page.getByLabel('Name')).toBeVisible();
+    await expect(page.getByLabel(/Max Episodes/)).toBeHidden();
+    await expect(page.getByRole('button', { name: /Import Page/ })).toBeVisible();
   });
 
   test('github shows URL and disabled hint when connector off', async ({ page }) => {
