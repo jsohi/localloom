@@ -63,6 +63,8 @@ for model in "$CHAT_MODEL" "$EMBED_MODEL"; do
 done
 
 # ── Docker services ─────────────────────────────────────────────────────────
+echo "==> Stopping any dev containers to free ports..."
+docker compose -p localloom down 2>/dev/null || true
 echo "==> Building and starting Docker services..."
 docker compose $COMPOSE_FILES build || { echo "ERROR: Docker build failed"; exit 1; }
 docker compose $COMPOSE_FILES up -d --wait --wait-timeout 120 || {
