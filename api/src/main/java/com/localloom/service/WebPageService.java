@@ -78,11 +78,28 @@ public class WebPageService {
           Jsoup.connect(url).timeout(CONNECT_TIMEOUT_MS).userAgent("LocalLoom/1.0").get();
 
       final var title = doc.title().isBlank() ? source.getName() : doc.title();
+
+      // Remove navigation, sidebars, footers, and other non-content elements
+      doc.select(
+              "nav, header, footer, aside, [role=navigation], [role=banner], "
+                  + "[role=complementary], .sidebar, .nav, .menu, .toc, .mw-jump-link, "
+                  + ".vector-header, .vector-column-start, .vector-column-end, "
+                  + ".mw-editsection, .reflist, .navbox, .catlinks, .mw-footer, "
+                  + "#mw-navigation, #footer, #catlinks, script, style, noscript")
+          .remove();
+
       final var body = doc.body();
       if (body == null) {
         throw new IllegalStateException("Page has no body content: " + url);
       }
-      final var fullText = body.text();
+
+      // Prefer <main> or <article> if present; fall back to full body
+      var content =
+          doc.selectFirst("main, article, [role=main], #mw-content-text, .mw-body-content");
+      if (content == null || content.text().isBlank()) {
+        content = body;
+      }
+      final var fullText = content.text();
 
       tx.executeWithoutResult(
           s -> {
@@ -197,27 +214,35 @@ public class WebPageService {
     final var headings = body.select("h1, h2, h3, h4, h5, h6");
     if (headings.isEmpty()) return List.of();
 
+    // Walk all top-level elements in order, grouping content under headings.
+    // This handles complex DOM structures (e.g. Wikipedia tables wrapped in divs)
+    // where nextElementSibling-based traversal misses nested content.
     final var sections = new ArrayList<Section>();
-    for (final Element heading : headings) {
-      final var headingText = heading.text().strip();
-      if (headingText.isEmpty()) continue;
+    String currentHeading = null;
+    final var currentContent = new StringBuilder();
 
-      // Collect all sibling text until the next heading
-      final var contentBuilder = new StringBuilder();
-      contentBuilder.append(headingText).append("\n");
-      var sibling = heading.nextElementSibling();
-      while (sibling != null && !isHeading(sibling)) {
-        final var text = sibling.text().strip();
-        if (!text.isEmpty()) {
-          contentBuilder.append(text).append("\n");
+    for (final var child : body.children()) {
+      final var childHeading = child.selectFirst("h1, h2, h3, h4, h5, h6");
+      if (isHeading(child) || (childHeading != null && childHeading == child.children().first())) {
+        // Flush previous section
+        if (currentHeading != null && !currentContent.isEmpty()) {
+          sections.add(new Section(currentHeading, currentContent.toString().strip()));
         }
-        sibling = sibling.nextElementSibling();
-      }
-      final var sectionText = contentBuilder.toString().strip();
-      if (!sectionText.isEmpty()) {
-        sections.add(new Section(headingText, sectionText));
+        currentHeading = childHeading != null ? childHeading.text().strip() : child.text().strip();
+        currentContent.setLength(0);
+        currentContent.append(currentHeading).append("\n");
+      } else if (currentHeading != null) {
+        final var text = child.text().strip();
+        if (!text.isEmpty()) {
+          currentContent.append(text).append("\n");
+        }
       }
     }
+    // Flush last section
+    if (currentHeading != null && !currentContent.isEmpty()) {
+      sections.add(new Section(currentHeading, currentContent.toString().strip()));
+    }
+
     return sections;
   }
 

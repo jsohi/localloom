@@ -75,7 +75,6 @@ class TTSService:
             t0 = time.monotonic()
             self._voices[voice_name] = PiperVoice.load(
                 voice_name,
-                data_dir=settings.model_dir,
                 download_dir=settings.model_dir,
             )
             elapsed = time.monotonic() - t0

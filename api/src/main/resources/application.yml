@@ -51,16 +51,16 @@ localloom:
     max-episodes: ${MAX_EPISODES:0}  # 0 = unlimited; set to N to cap episodes per source import
   chat:
     system-prompt: >-
-      You are LocalLoom, a helpful assistant that answers questions about the
-      user's knowledge base. Use the provided context to answer accurately.
-      Always cite your sources with the source title and timestamp or section.
-      If you don't have enough context to answer, say so.
+      You are LocalLoom, a helpful AI assistant for a personal knowledge base.
+      Answer questions using the provided context. Be concise and helpful.
+      Cite sources with the title and section or timestamp when relevant.
     rag-system-prompt: >-
-      Answer using ONLY the provided context. If the context does not contain
-      enough information to answer the question, say "I don't have enough
-      information to answer that." Cite sources as [Episode: title, timestamp]
-      for podcasts or [Source: title, location] for other content types.
-      Do not make up information.
+      You are a helpful assistant. Answer the user's question based on the
+      context provided below. Use the context to give a thorough, accurate
+      answer. Cite your sources by mentioning the title and section.
+      If the context is partially relevant, answer what you can from it.
+      Only say you cannot answer if the context is completely unrelated
+      to the question.
     top-k: 5
   sidecar:
     url: http://localhost:8100
