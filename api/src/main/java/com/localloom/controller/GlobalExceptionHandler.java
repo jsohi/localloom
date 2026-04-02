@@ -53,11 +53,19 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleGeneric(final Exception ex) {
-    log.error("Unexpected error", ex);
-    return ResponseEntity.internalServerError().body(errorResponse(500, "Internal server error"));
+    final var requestId = org.apache.logging.log4j.ThreadContext.get("requestId");
+    log.error("Unexpected error [requestId={}]", requestId, ex);
+    return ResponseEntity.internalServerError()
+        .body(errorResponse(500, "Internal server error", requestId));
   }
 
   private static ErrorResponse errorResponse(final int status, final String message) {
-    return new ErrorResponse(status, message, Instant.now());
+    return new ErrorResponse(
+        status, message, Instant.now(), org.apache.logging.log4j.ThreadContext.get("requestId"));
+  }
+
+  private static ErrorResponse errorResponse(
+      final int status, final String message, final String requestId) {
+    return new ErrorResponse(status, message, Instant.now(), requestId);
   }
 }
