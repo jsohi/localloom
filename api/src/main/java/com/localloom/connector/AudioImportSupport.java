@@ -112,16 +112,31 @@ public class AudioImportSupport {
     return tx.execute(
         status -> {
           final var existing = contentUnitRepository.findBySourceId(source.getId());
-          final var existingIds =
+          // Only skip episodes that are successfully INDEXED — retry ERROR/PENDING ones
+          final var indexedIds =
               existing.stream()
-                  .filter(u -> u.getExternalId() != null)
+                  .filter(
+                      u -> u.getExternalId() != null && u.getStatus() == ContentUnitStatus.INDEXED)
                   .map(ContentUnit::getExternalId)
                   .collect(java.util.stream.Collectors.toSet());
+
+          // Delete failed/pending units so they can be retried cleanly
+          final var failedUnits =
+              existing.stream()
+                  .filter(
+                      u ->
+                          u.getStatus() == ContentUnitStatus.ERROR
+                              || u.getStatus() == ContentUnitStatus.PENDING)
+                  .toList();
+          if (!failedUnits.isEmpty()) {
+            contentUnitRepository.deleteAll(failedUnits);
+            log.info("Deleted {} failed/pending unit(s) for retry", failedUnits.size());
+          }
 
           final var pairs = new ArrayList<UnitEpisodePair>(episodes.size());
           var skipped = 0;
           for (final var episode : episodes) {
-            if (episode.externalId() != null && existingIds.contains(episode.externalId())) {
+            if (episode.externalId() != null && indexedIds.contains(episode.externalId())) {
               skipped++;
               continue;
             }

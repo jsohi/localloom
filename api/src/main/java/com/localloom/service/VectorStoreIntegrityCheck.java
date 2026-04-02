@@ -56,6 +56,7 @@ public class VectorStoreIntegrityCheck {
   @EventListener(ApplicationReadyEvent.class)
   public void onStartup() {
     cleanupStaleJobs();
+    retryFailedEpisodes();
     checkVectorStoreIntegrity();
   }
 
@@ -74,6 +75,32 @@ public class VectorStoreIntegrityCheck {
           }
           log.info("Cleaned up {} stale job(s) at startup", staleJobs.size());
         });
+  }
+
+  private void retryFailedEpisodes() {
+    final var sources = sourceRepository.findAllByOrderByCreatedAtDesc();
+    final var toRetry = new ArrayList<String>();
+
+    for (final var source : sources) {
+      try {
+        final var units = contentUnitRepository.findBySourceId(source.getId());
+        final var failedCount =
+            units.stream().filter(u -> u.getStatus() != ContentUnitStatus.INDEXED).count();
+
+        if (failedCount > 0) {
+          toRetry.add(source.getName() + " (" + failedCount + " episodes)");
+          triggerResync(source.getId());
+        }
+      } catch (Exception e) {
+        log.warn("Failed to check episodes for source '{}': {}", source.getName(), e.getMessage());
+      }
+    }
+
+    if (toRetry.isEmpty()) {
+      log.debug("No failed episodes to retry");
+    } else {
+      log.info("Auto-retrying {} source(s) with failed episodes: {}", toRetry.size(), toRetry);
+    }
   }
 
   private void checkVectorStoreIntegrity() {
