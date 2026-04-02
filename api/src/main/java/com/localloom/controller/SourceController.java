@@ -42,9 +42,13 @@ public class SourceController {
   private static final Logger log = LogManager.getLogger(SourceController.class);
 
   public record CreateSourceRequest(
-      SourceType sourceType, String name, String originUrl, String config, Integer maxEpisodes) {}
+      SourceType sourceType,
+      @jakarta.validation.constraints.NotBlank String name,
+      String originUrl,
+      String config,
+      Integer maxEpisodes) {}
 
-  public record DetectUrlRequest(String url) {}
+  public record DetectUrlRequest(@jakarta.validation.constraints.NotBlank String url) {}
 
   private final SourceRepository sourceRepository;
   private final ContentUnitRepository contentUnitRepository;
@@ -75,7 +79,8 @@ public class SourceController {
   }
 
   @PostMapping("/detect-url")
-  public Map<String, String> detectUrl(@RequestBody final DetectUrlRequest request) {
+  public Map<String, String> detectUrl(
+      @jakarta.validation.Valid @RequestBody final DetectUrlRequest request) {
     if (request.url() == null || request.url().isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "url is required");
     }
@@ -87,7 +92,7 @@ public class SourceController {
   @Transactional
   @PostMapping
   public ResponseEntity<Map<String, Object>> createSource(
-      @RequestBody final CreateSourceRequest request) {
+      @jakarta.validation.Valid @RequestBody final CreateSourceRequest request) {
 
     // Auto-detect sourceType from URL if not provided
     final var effectiveSourceType = resolveSourceType(request);
