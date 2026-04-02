@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 public class TtsService {
 
   private static final Logger log = LogManager.getLogger(TtsService.class);
-  private static final String DEFAULT_VOICE = "en_US-lessac-medium";
+  private static final String DEFAULT_VOICE = "en_US-lessac-high";
 
   private final MessageRepository messageRepository;
   private final MlSidecarClient mlSidecarClient;
