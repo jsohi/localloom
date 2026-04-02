@@ -79,6 +79,22 @@ public class VectorStoreIntegrityCheck {
           }
           log.info("Cleaned up {} stale job(s) at startup", staleJobs.size());
         });
+
+    // Reset sources stuck in SYNCING — they can't be legitimately syncing at boot
+    tx.executeWithoutResult(
+        s -> {
+          final var stuckSources =
+              sourceRepository.findAllByOrderByCreatedAtDesc().stream()
+                  .filter(src -> src.getSyncStatus() == SyncStatus.SYNCING)
+                  .toList();
+          for (final var src : stuckSources) {
+            src.setSyncStatus(SyncStatus.ERROR);
+            sourceRepository.save(src);
+          }
+          if (!stuckSources.isEmpty()) {
+            log.info("Reset {} stuck SYNCING source(s) to ERROR", stuckSources.size());
+          }
+        });
   }
 
   private void retryFailedEpisodes() {
