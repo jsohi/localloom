@@ -247,11 +247,7 @@ public class UrlResolver {
     final var lookupUrl = ITUNES_LOOKUP_URL.formatted(podcastId);
     log.debug("Calling iTunes Lookup API: {}", lookupUrl);
 
-    @SuppressWarnings("unchecked")
-    final var response =
-        (java.util.Map<String, Object>)
-            restClient.get().uri(lookupUrl).retrieve().body(java.util.Map.class);
-
+    final var response = fetchJsonMap(lookupUrl);
     return parseiTunesResponse(response, url);
   }
 
@@ -266,10 +262,7 @@ public class UrlResolver {
         SPOTIFY_OEMBED_URL.formatted(URLEncoder.encode(url, StandardCharsets.UTF_8));
     log.debug("Calling Spotify oEmbed API: {}", oEmbedUrl);
 
-    @SuppressWarnings("unchecked")
-    final var oEmbedResponse =
-        (java.util.Map<String, Object>)
-            restClient.get().uri(oEmbedUrl).retrieve().body(java.util.Map.class);
+    final var oEmbedResponse = fetchJsonMap(oEmbedUrl);
 
     final var showName = oEmbedResponse != null ? (String) oEmbedResponse.get("title") : null;
     if (showName == null || showName.isBlank()) {
@@ -282,11 +275,7 @@ public class UrlResolver {
         ITUNES_SEARCH_URL.formatted(URLEncoder.encode(showName, StandardCharsets.UTF_8));
     log.debug("Searching iTunes for: {}", searchUrl);
 
-    @SuppressWarnings("unchecked")
-    final var searchResponse =
-        (java.util.Map<String, Object>)
-            restClient.get().uri(searchUrl).retrieve().body(java.util.Map.class);
-
+    final var searchResponse = fetchJsonMap(searchUrl);
     return parseiTunesResponse(searchResponse, url);
   }
 
@@ -347,6 +336,25 @@ public class UrlResolver {
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
+
+  /**
+   * Fetches a JSON response as a raw String and parses it manually. Works around APIs that return
+   * non-standard content types (e.g. iTunes returns {@code text/javascript} instead of {@code
+   * application/json}).
+   */
+  @SuppressWarnings("unchecked")
+  private java.util.Map<String, Object> fetchJsonMap(final String url) {
+    final var raw = restClient.get().uri(url).retrieve().body(String.class);
+    if (raw == null || raw.isBlank()) {
+      throw new IllegalStateException("Empty response from: " + url);
+    }
+    try {
+      return objectMapper.readValue(raw, java.util.Map.class);
+    } catch (Exception e) {
+      throw new IllegalStateException(
+          "Failed to parse JSON from " + url + ": " + e.getMessage(), e);
+    }
+  }
 
   @SuppressWarnings("unchecked")
   private ResolvedPodcast parseiTunesResponse(
