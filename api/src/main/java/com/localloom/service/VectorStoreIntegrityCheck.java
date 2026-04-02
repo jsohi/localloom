@@ -53,11 +53,15 @@ public class VectorStoreIntegrityCheck {
     this.tx = transactionTemplate;
   }
 
+  // Track sources already triggered for re-sync to avoid double-triggering
+  private final java.util.Set<UUID> resyncedSourceIds = new java.util.HashSet<>();
+
   @EventListener(ApplicationReadyEvent.class)
   public void onStartup() {
     cleanupStaleJobs();
     retryFailedEpisodes();
     checkVectorStoreIntegrity();
+    resyncedSourceIds.clear();
   }
 
   private void cleanupStaleJobs() {
@@ -82,6 +86,7 @@ public class VectorStoreIntegrityCheck {
     final var toRetry = new ArrayList<String>();
 
     for (final var source : sources) {
+      if (source.getSyncStatus() == SyncStatus.SYNCING) continue;
       try {
         final var units = contentUnitRepository.findBySourceId(source.getId());
         final var failedCount =
@@ -89,6 +94,7 @@ public class VectorStoreIntegrityCheck {
 
         if (failedCount > 0) {
           toRetry.add(source.getName() + " (" + failedCount + " episodes)");
+          resyncedSourceIds.add(source.getId());
           triggerResync(source.getId());
         }
       } catch (Exception e) {
@@ -117,6 +123,8 @@ public class VectorStoreIntegrityCheck {
     final var resynced = new ArrayList<String>();
 
     for (final var source : indexedSources) {
+      if (resyncedSourceIds.contains(source.getId()))
+        continue; // already triggered by retryFailedEpisodes
       try {
         final var units = contentUnitRepository.findBySourceId(source.getId());
         final var indexedUnits =

@@ -120,17 +120,13 @@ public class AudioImportSupport {
                   .map(ContentUnit::getExternalId)
                   .collect(java.util.stream.Collectors.toSet());
 
-          // Delete failed/pending units so they can be retried cleanly
-          final var failedUnits =
-              existing.stream()
-                  .filter(
-                      u ->
-                          u.getStatus() == ContentUnitStatus.ERROR
-                              || u.getStatus() == ContentUnitStatus.PENDING)
-                  .toList();
-          if (!failedUnits.isEmpty()) {
-            contentUnitRepository.deleteAll(failedUnits);
-            log.info("Deleted {} failed/pending unit(s) for retry", failedUnits.size());
+          // Delete all non-INDEXED units so they can be retried cleanly
+          // (covers ERROR, PENDING, and transient states like FETCHING/TRANSCRIBING/EMBEDDING)
+          final var nonIndexedUnits =
+              existing.stream().filter(u -> u.getStatus() != ContentUnitStatus.INDEXED).toList();
+          if (!nonIndexedUnits.isEmpty()) {
+            contentUnitRepository.deleteAll(nonIndexedUnits);
+            log.info("Deleted {} non-indexed unit(s) for retry", nonIndexedUnits.size());
           }
 
           final var pairs = new ArrayList<UnitEpisodePair>(episodes.size());
