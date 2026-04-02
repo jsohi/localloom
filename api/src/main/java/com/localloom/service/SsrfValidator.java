@@ -59,8 +59,13 @@ public class SsrfValidator {
       }
     } catch (IllegalStateException e) {
       throw e;
-    } catch (Exception e) {
-      log.debug("Could not validate URL host for SSRF check: {}", e.getMessage());
+    } catch (java.net.UnknownHostException e) {
+      // DNS resolution failed — let the downstream HTTP client handle the error
+      log.debug(
+          "DNS resolution failed for SSRF check (will fail at request time): {}", e.getMessage());
+    } catch (IllegalArgumentException e) {
+      // Malformed URL — block it rather than silently passing
+      throw new IllegalStateException("Malformed URL blocked by SSRF check: " + url, e);
     }
   }
 }

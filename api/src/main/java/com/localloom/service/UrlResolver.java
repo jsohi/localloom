@@ -141,15 +141,20 @@ public class UrlResolver {
    */
   private ResolvedPodcast resolveYoutube(final String url) {
     log.debug("Resolving YouTube URL via yt-dlp: {}", url);
+    ssrfValidator.validate(url);
 
     try {
-      // Use -- to prevent user URLs starting with - from being parsed as yt-dlp flags
+      // --no-playlist: resolve single videos only (playlist support is a future enhancement).
+      // --: prevent user URLs starting with - from being parsed as yt-dlp flags.
       final var pb = new ProcessBuilder(ytdlpPath, "--dump-json", "--no-playlist", "--", url);
       pb.redirectErrorStream(false);
       final var process = pb.start();
 
-      // Read stdout and stderr concurrently in background threads to avoid pipe-buffer deadlock
-      // and ensure waitFor timeout is respected even if streams block
+      // Read stdout and stderr concurrently in virtual threads to avoid pipe-buffer deadlock
+      // and ensure waitFor timeout is respected even if streams block.
+      // Virtual threads are used instead of ForkJoinPool.commonPool() to avoid starving
+      // the common pool with I/O-bound tasks.
+      final var vtExecutor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
       final var stdoutFuture =
           CompletableFuture.supplyAsync(
               () -> {
@@ -159,7 +164,8 @@ public class UrlResolver {
                 } catch (Exception e) {
                   return "";
                 }
-              });
+              },
+              vtExecutor);
       final var stderrFuture =
           CompletableFuture.supplyAsync(
               () -> {
@@ -172,6 +178,7 @@ public class UrlResolver {
               });
 
       final var exited = process.waitFor(YTDLP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      vtExecutor.close();
       if (!exited) {
         process.destroyForcibly();
         throw new IllegalStateException("yt-dlp timed out after " + YTDLP_TIMEOUT_SECONDS + "s");
