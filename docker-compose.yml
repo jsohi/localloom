@@ -137,6 +137,36 @@ services:
       timeout: 3s
       retries: 5
 
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    <<: *default-logging
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    <<: *default-logging
+    depends_on:
+      - prometheus
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-localloom}
+      GF_SECURITY_ADMIN_USER: admin
+    profiles:
+      - monitoring
+
 volumes:
   postgres-data:
   chroma-data:
@@ -144,3 +174,5 @@ volumes:
   models-data:
   tts-data:
   localloom-logs:
+  prometheus-data:
+  grafana-data:
