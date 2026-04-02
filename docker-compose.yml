@@ -10,6 +10,10 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     <<: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-localloom}
       POSTGRES_USER: ${POSTGRES_USER:-localloom}
@@ -28,6 +32,10 @@ services:
     image: chromadb/chroma:1.0.12
     restart: unless-stopped
     <<: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     volumes:
       - chroma-data:/chroma/chroma
     ports:
@@ -44,6 +52,10 @@ services:
     image: localloom/api:${VERSION:-latest}
     restart: unless-stopped
     <<: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     depends_on:
       postgres:
         condition: service_healthy
