@@ -1,12 +1,21 @@
 server:
   port: 8080
+  shutdown: graceful
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:postgresql://localhost:5432/localloom
     username: ${DB_USERNAME:localloom}
     password: ${DB_PASSWORD:localloom}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   servlet:
     multipart:
@@ -69,6 +78,8 @@ localloom:
     dir: data/audio
   security:
     ssrf-allowed-hosts: []
+    api-key: ${LOCALLOOM_API_KEY:}  # set to enable API key auth; empty = open access
+    cors-origins: ${LOCALLOOM_CORS_ORIGINS:http://localhost:3000}
   upload:
     dir: data/uploads
   connectors:
@@ -84,3 +95,15 @@ localloom:
       enabled: false
     github:
       enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: localloom

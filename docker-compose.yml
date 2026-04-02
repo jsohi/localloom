@@ -10,6 +10,10 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     <<: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-localloom}
       POSTGRES_USER: ${POSTGRES_USER:-localloom}
@@ -28,6 +32,10 @@ services:
     image: chromadb/chroma:1.0.12
     restart: unless-stopped
     <<: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     volumes:
       - chroma-data:/chroma/chroma
     ports:
@@ -44,6 +52,10 @@ services:
     image: localloom/api:${VERSION:-latest}
     restart: unless-stopped
     <<: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,6 +137,36 @@ services:
       timeout: 3s
       retries: 5
 
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    <<: *default-logging
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    <<: *default-logging
+    depends_on:
+      - prometheus
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-localloom}
+      GF_SECURITY_ADMIN_USER: admin
+    profiles:
+      - monitoring
+
 volumes:
   postgres-data:
   chroma-data:
@@ -132,3 +174,5 @@ volumes:
   models-data:
   tts-data:
   localloom-logs:
+  prometheus-data:
+  grafana-data:
