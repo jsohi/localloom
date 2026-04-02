@@ -10,8 +10,7 @@ public class WebConfig implements WebMvcConfigurer {
 
   private final String[] allowedOrigins;
 
-  public WebConfig(
-      @Value("${localloom.security.cors-origins:http://localhost:3000}") final String origins) {
+  public WebConfig(@Value("${localloom.security.cors-origins:*}") final String origins) {
     this.allowedOrigins = origins.split(",");
   }
 
@@ -21,7 +20,8 @@ public class WebConfig implements WebMvcConfigurer {
         .addMapping("/api/**")
         .allowedOrigins(allowedOrigins)
         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-        .allowedHeaders("*")
-        .allowCredentials(true);
+        .allowedHeaders("*");
+    // Note: allowCredentials(true) is incompatible with allowedOrigins("*")
+    // For local use, wildcard origin is sufficient
   }
 }
