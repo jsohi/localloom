@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
     <Properties>
-        <Property name="LOG_DIR">${sys:LOG_DIR:-logs}</Property>
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}{UTC} [api] %-5level [%X{requestId:--}] %logger{36} - %msg%n</Property>
+        <Property name="LOG_DIR">${env:LOG_DIR:-${sys:LOG_DIR:-logs}}</Property>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}{America/New_York} [api] %-5level [%X{requestId:--}] %logger{36} - %msg%n</Property>
     </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
@@ -13,10 +13,16 @@
                      filePattern="${LOG_DIR}/api-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}"/>
             <Policies>
+                <OnStartupTriggeringPolicy/>
                 <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
                 <SizeBasedTriggeringPolicy size="50MB"/>
             </Policies>
-            <DefaultRolloverStrategy max="7"/>
+            <DefaultRolloverStrategy max="100">
+                <Delete basePath="${LOG_DIR}" maxDepth="1">
+                    <IfFileName glob="api-*.log.gz"/>
+                    <IfLastModified age="10d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
         <Async name="AsyncConsole">
             <AppenderRef ref="Console"/>
@@ -27,6 +33,15 @@
     </Appenders>
     <Loggers>
         <Logger name="com.localloom" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncFile"/>
+        </Logger>
+        <!-- Log Spring AI RAG advisor flow (suppress noisy metadata) -->
+        <Logger name="org.springframework.ai.rag" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncConsole"/>
+            <AppenderRef ref="AsyncFile"/>
+        </Logger>
+        <Logger name="org.springframework.ai.chat.metadata" level="WARN" additivity="false">
             <AppenderRef ref="AsyncConsole"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>

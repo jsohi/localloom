@@ -1,7 +1,10 @@
 import io
 import logging
+import os
 import re
+import shutil
 import time
+import urllib.request
 import wave
 
 from piper import PiperVoice
@@ -64,6 +67,47 @@ class TTSService:
     def __init__(self) -> None:
         self._voices: dict[str, PiperVoice] = {}
 
+    # HuggingFace URL pattern for Piper voices
+    _HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
+
+    # Map voice name prefix → HuggingFace path segment
+    _VOICE_PATHS: dict[str, str] = {
+        "en_US-lessac-high": "en/en_US/lessac/high",
+        "en_US-lessac-medium": "en/en_US/lessac/medium",
+        "en_US-ryan-medium": "en/en_US/ryan/medium",
+        "en_US-amy-medium": "en/en_US/amy/medium",
+        "en_GB-alba-medium": "en/en_GB/alba/medium",
+    }
+
+    def _ensure_voice_downloaded(self, voice_name: str) -> str:
+        """Download the Piper voice ONNX model if not already present. Returns model path."""
+        model_path = os.path.join(settings.model_dir, f"{voice_name}.onnx")
+        config_path = f"{model_path}.json"
+
+        if os.path.exists(model_path) and os.path.exists(config_path):
+            return model_path
+
+        hf_subpath = self._VOICE_PATHS.get(voice_name)
+        if hf_subpath is None:
+            raise ValueError(
+                f"Unknown Piper voice '{voice_name}'. "
+                f"Known voices: {list(self._VOICE_PATHS.keys())}"
+            )
+
+        os.makedirs(settings.model_dir, exist_ok=True)
+        for filename in [f"{voice_name}.onnx", f"{voice_name}.onnx.json"]:
+            url = f"{self._HF_BASE}/{hf_subpath}/{filename}"
+            dest = os.path.join(settings.model_dir, filename)
+            if not os.path.exists(dest):
+                logger.info("Downloading Piper voice: %s → %s", url, dest)
+                tmp_dest = dest + ".tmp"
+                with urllib.request.urlopen(url, timeout=120) as resp, open(tmp_dest, "wb") as f:
+                    shutil.copyfileobj(resp, f)
+                os.replace(tmp_dest, dest)  # atomic rename
+                logger.info("Downloaded %s (%.1f MB)", filename, os.path.getsize(dest) / 1e6)
+
+        return model_path
+
     def _load_voice(self, voice_name: str) -> PiperVoice:
         """Load and cache a PiperVoice by name. Downloads the model on first use."""
         if voice_name not in self._voices:
@@ -72,9 +116,10 @@ class TTSService:
                 voice_name,
                 settings.model_dir,
             )
+            model_path = self._ensure_voice_downloaded(voice_name)
             t0 = time.monotonic()
             self._voices[voice_name] = PiperVoice.load(
-                voice_name,
+                model_path,
                 download_dir=settings.model_dir,
             )
             elapsed = time.monotonic() - t0

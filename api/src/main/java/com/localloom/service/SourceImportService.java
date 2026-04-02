@@ -6,8 +6,10 @@ import com.localloom.model.SyncStatus;
 import com.localloom.repository.SourceRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +28,7 @@ public class SourceImportService {
   private final Map<SourceType, SourceConnector> connectors;
   private final SourceRepository sourceRepository;
   private final JobService jobService;
+  private final Set<UUID> cancelledSources = ConcurrentHashMap.newKeySet();
 
   public SourceImportService(
       final List<SourceConnector> connectorList,
@@ -39,6 +42,17 @@ public class SourceImportService {
     log.info("Registered {} source connector(s): {}", connectors.size(), connectors.keySet());
   }
 
+  /** Marks a source as cancelled so in-flight episodes skip remaining work. */
+  public void cancelImport(final UUID sourceId) {
+    cancelledSources.add(sourceId);
+    log.info("Import cancelled for sourceId={}", sourceId);
+  }
+
+  /** Returns true if the given source's import has been cancelled. */
+  public boolean isCancelled(final UUID sourceId) {
+    return cancelledSources.contains(sourceId);
+  }
+
   @Async
   public CompletableFuture<Void> importSource(final UUID sourceId, final UUID jobId) {
     return importSource(sourceId, jobId, null);
@@ -48,6 +62,7 @@ public class SourceImportService {
   public CompletableFuture<Void> importSource(
       final UUID sourceId, final UUID jobId, final Integer maxEpisodes) {
     log.info("Starting import pipeline: sourceId={} jobId={}", sourceId, jobId);
+    cancelledSources.remove(sourceId); // clear any stale cancellation
 
     try {
       final var source =
@@ -65,7 +80,9 @@ public class SourceImportService {
         return CompletableFuture.completedFuture(null);
       }
 
-      return connector.importSource(source, jobId, maxEpisodes);
+      return connector
+          .importSource(source, jobId, maxEpisodes)
+          .whenComplete((v, ex) -> cancelledSources.remove(sourceId));
 
     } catch (Exception e) {
       log.error(
@@ -74,6 +91,7 @@ public class SourceImportService {
           jobId,
           e.getMessage(),
           e);
+      cancelledSources.remove(sourceId);
       sourceRepository
           .findById(sourceId)
           .ifPresent(

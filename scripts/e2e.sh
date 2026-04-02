@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILES="-p localloom-test -f $REPO_ROOT/docker-compose.yml -f $REPO_ROOT/docker-compose.test.yml"
 CHAT_MODEL="${E2E_OLLAMA_MODEL:-llama3.1:8b}"
-EMBED_MODEL="nomic-embed-text"
+EMBED_MODEL="${OLLAMA_EMBED_MODEL:-mxbai-embed-large}"
 OLLAMA_STARTED_BY_SCRIPT=false
 
 cleanup() {

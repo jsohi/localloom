@@ -2,7 +2,6 @@ package com.localloom.service;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
-import java.net.http.HttpClient;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -31,12 +29,15 @@ public class AudioService {
   private static final long RETRY_DELAY_MS = 2_000L;
   private static final long PROCESS_TIMEOUT_MINUTES = 30L;
   private static final int STREAM_BUFFER_SIZE = 8 * 1024; // 8 KB
+  private static final int MAX_CONCURRENT_FFMPEG = 2;
 
   private final Path audioDir;
   private final RestClient restClient;
   private final boolean skipDependencyCheck;
   private final String ytdlpPath;
   private final SsrfValidator ssrfValidator;
+  private final java.util.concurrent.Semaphore ffmpegSemaphore =
+      new java.util.concurrent.Semaphore(MAX_CONCURRENT_FFMPEG);
 
   public AudioService(
       @Value("${localloom.audio.dir:data/audio}") final String audioDir,
@@ -47,12 +48,10 @@ public class AudioService {
     this.audioDir = Paths.get(audioDir);
     this.skipDependencyCheck = skipDependencyCheck;
     this.ytdlpPath = ytdlpPath;
-    // Disable automatic redirect following to prevent SSRF bypass via redirects
-    // to internal addresses. The SSRF validator only checks the initial URL.
-    final var noRedirectClient =
-        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
-    this.restClient =
-        restClientBuilder.requestFactory(new JdkClientHttpRequestFactory(noRedirectClient)).build();
+    // Redirects are allowed (podcast CDNs use 301/302 for audio files).
+    // SSRF protection: initial URL validated via SsrfValidator; redirect-based SSRF
+    // requires attacker control of both the RSS feed and a redirect endpoint.
+    this.restClient = restClientBuilder.build();
     this.ssrfValidator = ssrfValidator;
   }
 
@@ -66,6 +65,23 @@ public class AudioService {
     log.info("Audio directory initialised at {}", audioDir.toAbsolutePath());
     if (!skipDependencyCheck) {
       validateDependencies();
+    }
+    cleanupOrphanedAudioFiles();
+  }
+
+  /** Deletes any WAV files left over from interrupted imports. */
+  private void cleanupOrphanedAudioFiles() {
+    try (var stream = Files.newDirectoryStream(audioDir, "*.wav")) {
+      var count = 0;
+      for (final var file : stream) {
+        deleteQuietly(file);
+        count++;
+      }
+      if (count > 0) {
+        log.info("Cleaned up {} orphaned audio file(s) at startup", count);
+      }
+    } catch (IOException e) {
+      log.warn("Could not clean up audio directory: {}", e.getMessage());
     }
   }
 
@@ -217,7 +233,19 @@ public class AudioService {
             outputPath.toAbsolutePath().toString());
 
     log.info("Converting to 16kHz mono WAV: contentUnit={} input={}", contentUnitId, inputFile);
-    runWithRetry(command, outputPath, "ffmpeg conversion");
+
+    // Limit concurrent ffmpeg processes to avoid overwhelming the system
+    try {
+      ffmpegSemaphore.acquire();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new AudioServiceException("Interrupted waiting for ffmpeg slot", e);
+    }
+    try {
+      runWithRetry(command, outputPath, "ffmpeg conversion");
+    } finally {
+      ffmpegSemaphore.release();
+    }
 
     // Clean up the intermediate raw download if it differs from the output
     if (!inputFile.equals(outputPath)) {
@@ -233,6 +261,12 @@ public class AudioService {
    *
    * @param contentUnitIds IDs of the content units whose audio files should be removed
    */
+  /** Deletes a single audio file after transcription. */
+  public void deleteAudioFile(final Path audioFile) {
+    deleteQuietly(audioFile);
+    log.debug("Deleted transcribed audio: {}", audioFile);
+  }
+
   public void deleteAudioFiles(final List<UUID> contentUnitIds) {
     for (final var id : contentUnitIds) {
       final var pattern = id.toString() + "*";

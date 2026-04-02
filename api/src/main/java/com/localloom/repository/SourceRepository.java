@@ -14,4 +14,8 @@ public interface SourceRepository extends JpaRepository<Source, UUID> {
 
   @EntityGraph(attributePaths = "contentUnits")
   Optional<Source> findWithContentUnitsById(UUID id);
+
+  boolean existsByOriginUrl(String originUrl);
+
+  Optional<Source> findByOriginUrl(String originUrl);
 }

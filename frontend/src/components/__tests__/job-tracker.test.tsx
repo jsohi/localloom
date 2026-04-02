@@ -50,7 +50,7 @@ describe('JobTracker', () => {
         entityType: 'SOURCE',
         status: 'RUNNING' as never,
         progress: 0.33,
-        createdAt: '2026-01-01T00:00:00Z',
+        createdAt: new Date().toISOString(),
       },
     ]);
 
@@ -72,7 +72,7 @@ describe('JobTracker', () => {
         entityType: 'SOURCE',
         status: 'RUNNING' as never,
         progress: 0.75,
-        createdAt: '2026-01-01T00:00:00Z',
+        createdAt: new Date().toISOString(),
       },
     ]);
 
@@ -90,7 +90,7 @@ describe('JobTracker', () => {
         entityType: 'SOURCE',
         status: 'COMPLETED' as never,
         progress: 1.0,
-        createdAt: '2026-01-01T00:00:00Z',
+        createdAt: new Date().toISOString(),
       },
       {
         id: 'j4',
@@ -99,7 +99,7 @@ describe('JobTracker', () => {
         entityType: 'SOURCE',
         status: 'PENDING' as never,
         progress: 0,
-        createdAt: '2026-01-01T00:00:00Z',
+        createdAt: new Date().toISOString(),
       },
     ]);
 

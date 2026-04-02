@@ -1,6 +1,7 @@
 __pycache__/
 .venv/
 data/
+logs/
 *.pyc
 .env
 dist/

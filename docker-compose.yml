@@ -87,6 +87,7 @@ services:
     environment:
       LOCALLOOM_MODEL_DIR: /app/data/models
       LOCALLOOM_TTS_OUTPUT_DIR: /app/data/tts_output
+      SIDECAR_WORKERS: ${LOCALLOOM_SIDECAR_WORKERS:-8}  # max concurrent Whisper processes
       PYTHONUNBUFFERED: "1"
       LOG_DIR: /app/logs
     volumes:

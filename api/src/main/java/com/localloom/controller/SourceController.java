@@ -100,13 +100,28 @@ public class SourceController {
 
     validateCreateRequest(request, effectiveSourceType);
 
-    var source = new Source();
-    source.setSourceType(effectiveSourceType);
-    source.setName(request.name());
-    source.setOriginUrl(request.originUrl());
-    source.setConfig(request.config());
-    source.setSyncStatus(SyncStatus.SYNCING);
-    source = sourceRepository.save(source);
+    // If a source with the same URL already exists, re-sync it (picks up new episodes)
+    var existing =
+        (request.originUrl() != null && !request.originUrl().isBlank())
+            ? sourceRepository.findByOriginUrl(request.originUrl())
+            : java.util.Optional.<Source>empty();
+
+    Source source;
+    if (existing.isPresent()) {
+      source = existing.get();
+      source.setSyncStatus(SyncStatus.SYNCING);
+      source = sourceRepository.save(source);
+      log.info(
+          "Re-syncing existing source: sourceId={} url={}", source.getId(), request.originUrl());
+    } else {
+      source = new Source();
+      source.setSourceType(effectiveSourceType);
+      source.setName(request.name());
+      source.setOriginUrl(request.originUrl());
+      source.setConfig(request.config());
+      source.setSyncStatus(SyncStatus.SYNCING);
+      source = sourceRepository.save(source);
+    }
 
     final var job = jobService.createJob(JobType.SYNC, source.getId(), EntityType.SOURCE);
 
@@ -212,6 +227,9 @@ public class SourceController {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Source not found: " + id);
     }
     log.info("Deleting sourceId={}", id);
+
+    // Cancel any in-flight import for this source so episodes stop processing
+    sourceImportService.cancelImport(id);
 
     final var contentUnitIds =
         contentUnitRepository.findBySourceId(id).stream().map(unit -> unit.getId()).toList();

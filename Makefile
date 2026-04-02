@@ -1,4 +1,4 @@
-.PHONY: setup dev restart lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean
+.PHONY: setup dev restart lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean backup restore
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -119,6 +119,15 @@ logs:
 ## logs-export: Export all logs (app files + Docker stdout) to logs/export/.
 logs-export:
 	@bash scripts/logs-export.sh
+
+# ── Backup / Restore ─────────────────────────────────────────────────────────
+## backup: Back up PostgreSQL + ChromaDB to ./backups/ (keeps last 20).
+backup:
+	@bash scripts/backup.sh
+
+## restore: Restore from a backup (interactive or pass timestamp).
+restore:
+	@bash scripts/restore.sh $(filter-out $@,$(MAKECMDGOALS))
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 ## clean: Remove all build artifacts.

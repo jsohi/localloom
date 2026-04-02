@@ -35,7 +35,7 @@ spring:
           temperature: 0.7
       embedding:
         options:
-          model: nomic-embed-text
+          model: ${OLLAMA_EMBED_MODEL:mxbai-embed-large}
     vectorstore:
       chroma:
         initialize-schema: true
@@ -49,6 +49,7 @@ logging:
 localloom:
   import:
     max-episodes: ${MAX_EPISODES:0}  # 0 = unlimited; set to N to cap episodes per source import
+    parallel-episodes: ${LOCALLOOM_IMPORT_PARALLEL_EPISODES:4}  # concurrent episodes; increase when Ollama is off
   chat:
     system-prompt: >-
       You are LocalLoom, a helpful AI assistant for a personal knowledge base.

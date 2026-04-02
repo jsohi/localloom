@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHAT_MODEL="${OLLAMA_MODEL:-llama4:scout}"
-EMBED_MODEL="nomic-embed-text"
+EMBED_MODEL="${OLLAMA_EMBED_MODEL:-mxbai-embed-large}"
 OLLAMA_STARTED_BY_SCRIPT=false
 MODE="${1:-prod}"
 
