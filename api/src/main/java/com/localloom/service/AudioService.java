@@ -2,6 +2,7 @@ package com.localloom.service;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.net.http.HttpClient;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -45,7 +47,12 @@ public class AudioService {
     this.audioDir = Paths.get(audioDir);
     this.skipDependencyCheck = skipDependencyCheck;
     this.ytdlpPath = ytdlpPath;
-    this.restClient = restClientBuilder.build();
+    // Disable automatic redirect following to prevent SSRF bypass via redirects
+    // to internal addresses. The SSRF validator only checks the initial URL.
+    final var noRedirectClient =
+        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+    this.restClient =
+        restClientBuilder.requestFactory(new JdkClientHttpRequestFactory(noRedirectClient)).build();
     this.ssrfValidator = ssrfValidator;
   }
 

@@ -150,10 +150,9 @@ public class UrlResolver {
       pb.redirectErrorStream(false);
       final var process = pb.start();
 
-      // Read stdout and stderr concurrently in virtual threads to avoid pipe-buffer deadlock
-      // and ensure waitFor timeout is respected even if streams block.
-      // Virtual threads are used instead of ForkJoinPool.commonPool() to avoid starving
-      // the common pool with I/O-bound tasks.
+      // Read stdout and stderr concurrently in virtual threads to avoid pipe-buffer deadlock.
+      // Both futures use the same virtual thread executor to avoid starving
+      // ForkJoinPool.commonPool() with I/O-bound tasks.
       final var vtExecutor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
       final var stdoutFuture =
           CompletableFuture.supplyAsync(
@@ -175,17 +174,21 @@ public class UrlResolver {
                 } catch (Exception e) {
                   return "";
                 }
-              });
+              },
+              vtExecutor);
 
       final var exited = process.waitFor(YTDLP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      vtExecutor.close();
       if (!exited) {
+        // Kill process first — this closes streams, unblocking the reader threads
         process.destroyForcibly();
+        vtExecutor.shutdownNow();
         throw new IllegalStateException("yt-dlp timed out after " + YTDLP_TIMEOUT_SECONDS + "s");
       }
 
+      // Process exited normally — streams will EOF, readers will complete
       final var json = stdoutFuture.join();
       final var stderr = stderrFuture.join();
+      vtExecutor.close();
 
       if (process.exitValue() != 0) {
         throw new IllegalStateException(

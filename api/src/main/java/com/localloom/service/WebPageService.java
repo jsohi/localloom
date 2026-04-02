@@ -231,6 +231,16 @@ public class WebPageService {
         currentHeading = childHeading != null ? childHeading.text().strip() : child.text().strip();
         currentContent.setLength(0);
         currentContent.append(currentHeading).append("\n");
+
+        // If the heading is inside a container (e.g. <div><h2>Title</h2><p>Content</p></div>),
+        // capture the remaining content after the heading within the same container.
+        if (childHeading != null && !isHeading(child)) {
+          childHeading.remove(); // remove heading to avoid duplication
+          final var remaining = child.text().strip();
+          if (!remaining.isEmpty()) {
+            currentContent.append(remaining).append("\n");
+          }
+        }
       } else if (currentHeading != null) {
         final var text = child.text().strip();
         if (!text.isEmpty()) {
