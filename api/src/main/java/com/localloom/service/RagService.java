@@ -53,6 +53,7 @@ public class RagService {
 
   /** Synchronous RAG query that returns the answer with source citations. */
   public RagResponse answer(final RagQuery query) {
+    final var start = System.currentTimeMillis();
     log.debug(
         "RAG query: question='{}' conversationId={}", query.question(), query.conversationId());
 
@@ -61,18 +62,32 @@ public class RagService {
     var answer = clientResponse.chatResponse().getResult().getOutput().getText();
     var citations = extractCitations(clientResponse);
 
-    log.debug("RAG response: citations={}", citations.size());
+    final var elapsed = System.currentTimeMillis() - start;
+    log.info("RAG response: citations={} elapsed={}s", citations.size(), elapsed / 1000);
+    final var answerPreview =
+        answer != null && answer.length() > 300 ? answer.substring(0, 300) + "..." : answer;
+    log.debug("Model response: {}", answerPreview);
     return new RagResponse(answer, citations);
   }
 
   /** Streaming RAG query for real-time UI responses. */
   public Flux<String> streamAnswer(final RagQuery query) {
+    final var start = System.currentTimeMillis();
     log.debug(
         "RAG stream query: question='{}' conversationId={}",
         query.question(),
         query.conversationId());
 
-    return buildPrompt(query).stream().content();
+    return buildPrompt(query).stream()
+        .content()
+        .doOnComplete(
+            () -> {
+              final var elapsed = System.currentTimeMillis() - start;
+              log.info(
+                  "RAG stream complete: question='{}' elapsed={}s",
+                  query.question(),
+                  elapsed / 1000);
+            });
   }
 
   private ChatClientRequestSpec buildPrompt(final RagQuery query) {
@@ -83,8 +98,20 @@ public class RagService {
       var history = loadConversationHistory(query.conversationId());
       if (!history.isEmpty()) {
         promptSpec.messages(history);
+        log.debug("Conversation history: {} message(s)", history.size());
+        for (var i = 0; i < history.size(); i++) {
+          final var msg = history.get(i);
+          final var content = msg.getText();
+          final var preview = content.length() > 200 ? content.substring(0, 200) + "..." : content;
+          log.debug("  [{}] {}: {}", i, msg.getMessageType(), preview);
+        }
       }
     }
+
+    log.debug(
+        "Prompt to model — question: '{}', conversationId: {}",
+        query.question(),
+        query.conversationId());
 
     return promptSpec;
   }

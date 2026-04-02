@@ -2,9 +2,11 @@ package com.localloom.service;
 
 import com.localloom.model.ContentUnitStatus;
 import com.localloom.model.EntityType;
+import com.localloom.model.JobStatus;
 import com.localloom.model.JobType;
 import com.localloom.model.SyncStatus;
 import com.localloom.repository.ContentUnitRepository;
+import com.localloom.repository.JobRepository;
 import com.localloom.repository.SourceRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,7 @@ public class VectorStoreIntegrityCheck {
   private final ContentUnitRepository contentUnitRepository;
   private final EmbeddingService embeddingService;
   private final JobService jobService;
+  private final JobRepository jobRepository;
   private final SourceImportService sourceImportService;
   private final TransactionTemplate tx;
 
@@ -38,18 +41,42 @@ public class VectorStoreIntegrityCheck {
       final ContentUnitRepository contentUnitRepository,
       final EmbeddingService embeddingService,
       final JobService jobService,
+      final JobRepository jobRepository,
       final SourceImportService sourceImportService,
       final TransactionTemplate transactionTemplate) {
     this.sourceRepository = sourceRepository;
     this.contentUnitRepository = contentUnitRepository;
     this.embeddingService = embeddingService;
     this.jobService = jobService;
+    this.jobRepository = jobRepository;
     this.sourceImportService = sourceImportService;
     this.tx = transactionTemplate;
   }
 
   @EventListener(ApplicationReadyEvent.class)
-  public void checkIntegrity() {
+  public void onStartup() {
+    cleanupStaleJobs();
+    checkVectorStoreIntegrity();
+  }
+
+  private void cleanupStaleJobs() {
+    tx.executeWithoutResult(
+        s -> {
+          final var staleStatuses = List.of(JobStatus.PENDING, JobStatus.RUNNING);
+          final var staleJobs = jobRepository.findByStatusInOrderByCreatedAtAsc(staleStatuses);
+          if (staleJobs.isEmpty()) return;
+
+          for (final var job : staleJobs) {
+            job.setStatus(JobStatus.FAILED);
+            job.setErrorMessage("Stale job cleaned up at startup");
+            job.setCompletedAt(java.time.Instant.now());
+            jobRepository.save(job);
+          }
+          log.info("Cleaned up {} stale job(s) at startup", staleJobs.size());
+        });
+  }
+
+  private void checkVectorStoreIntegrity() {
     final var indexedSources =
         sourceRepository.findAllByOrderByCreatedAtDesc().stream()
             .filter(s -> s.getSyncStatus() == SyncStatus.IDLE)
@@ -104,17 +131,22 @@ public class VectorStoreIntegrityCheck {
   }
 
   private void triggerResync(final UUID sourceId) {
-    tx.executeWithoutResult(
-        s -> {
-          final var source =
-              sourceRepository
-                  .findById(sourceId)
-                  .orElseThrow(() -> new IllegalStateException("Source not found: " + sourceId));
-          source.setSyncStatus(SyncStatus.SYNCING);
-          sourceRepository.save(source);
+    // Commit the source status + job creation first, then kick off async import.
+    // importSource runs on a separate thread and needs the committed data visible.
+    final var jobId =
+        tx.execute(
+            s -> {
+              final var source =
+                  sourceRepository
+                      .findById(sourceId)
+                      .orElseThrow(
+                          () -> new IllegalStateException("Source not found: " + sourceId));
+              source.setSyncStatus(SyncStatus.SYNCING);
+              sourceRepository.save(source);
 
-          final var job = jobService.createJob(JobType.SYNC, sourceId, EntityType.SOURCE);
-          sourceImportService.importSource(sourceId, job.getId());
-        });
+              return jobService.createJob(JobType.SYNC, sourceId, EntityType.SOURCE).getId();
+            });
+
+    sourceImportService.importSource(sourceId, jobId);
   }
 }

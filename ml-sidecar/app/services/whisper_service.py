@@ -1,5 +1,8 @@
 import logging
+import os
+import threading
 import time
+from concurrent.futures import ProcessPoolExecutor
 
 from faster_whisper import WhisperModel
 from pydantic import BaseModel
@@ -7,6 +10,9 @@ from pydantic import BaseModel
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+MAX_WORKERS = int(os.environ.get("SIDECAR_WORKERS", "8"))
+IDLE_TIMEOUT_SECONDS = 60
 
 
 class Segment(BaseModel):
@@ -20,59 +26,100 @@ class TranscriptionResult(BaseModel):
     duration: float
 
 
+def _transcribe_in_worker(
+    audio_path: str, model_name: str, model_dir: str, compute_type: str
+) -> dict:
+    """Run transcription in a worker process. Each process loads its own model."""
+    # Each worker process has its own module-level model cache
+    global _worker_model, _worker_model_name
+    if "_worker_model" not in globals() or _worker_model_name != model_name:
+        logger.info("Worker PID %d loading Whisper model '%s'", os.getpid(), model_name)
+        t0 = time.monotonic()
+        _worker_model = WhisperModel(
+            model_name,
+            download_root=model_dir,
+            device="auto",
+            compute_type=compute_type,
+        )
+        _worker_model_name = model_name
+        logger.info(
+            "Worker PID %d loaded '%s' in %.2fs", os.getpid(), model_name, time.monotonic() - t0
+        )
+
+    logger.info("Worker PID %d transcribing '%s'", os.getpid(), audio_path)
+    t0 = time.monotonic()
+    raw_segments, info = _worker_model.transcribe(audio_path)
+    segments = [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in raw_segments]
+    elapsed = time.monotonic() - t0
+    logger.info(
+        "Worker PID %d done in %.2fs: %d segments, duration=%.2fs",
+        os.getpid(),
+        elapsed,
+        len(segments),
+        info.duration,
+    )
+    return {"segments": segments, "duration": info.duration}
+
+
 class WhisperService:
-    """Lazy-loading wrapper around faster-whisper."""
+    """Manages a pool of worker processes for parallel Whisper transcription.
+
+    Workers are spawned on demand (up to MAX_WORKERS) and automatically
+    shut down after IDLE_TIMEOUT_SECONDS of inactivity to free memory.
+    """
 
     def __init__(self) -> None:
-        self._models: dict[str, WhisperModel] = {}
+        self._pool: ProcessPoolExecutor | None = None
+        self._last_used: float = 0.0
+        self._lock = threading.Lock()
+        logger.info(
+            "WhisperService initialized: max_workers=%d, idle_timeout=%ds",
+            MAX_WORKERS,
+            IDLE_TIMEOUT_SECONDS,
+        )
 
-    def _load_model(self, model_name: str) -> WhisperModel:
-        """Load and cache a WhisperModel by name. Returns the cached instance on repeat calls."""
-        if model_name not in self._models:
-            logger.info(
-                "Loading Whisper model '%s' from cache dir '%s'",
-                model_name,
-                settings.model_dir,
-            )
-            t0 = time.monotonic()
-            self._models[model_name] = WhisperModel(
-                model_name,
-                download_root=settings.model_dir,
-                device="auto",
-                compute_type=settings.whisper_compute_type,
-            )
-            elapsed = time.monotonic() - t0
-            logger.info("Whisper model '%s' loaded in %.2fs", model_name, elapsed)
-        return self._models[model_name]
+    def _get_pool(self) -> ProcessPoolExecutor:
+        """Get or create the process pool. Must be called while holding _lock."""
+        if self._pool is None:
+            self._pool = ProcessPoolExecutor(max_workers=MAX_WORKERS)
+            logger.info("Created process pool with max_workers=%d", MAX_WORKERS)
+        self._last_used = time.monotonic()
+        return self._pool
+
+    def shutdown_if_idle(self) -> None:
+        """Shut down the pool if no work has been submitted recently."""
+        with self._lock:
+            if self._pool is None:
+                return
+            idle_seconds = time.monotonic() - self._last_used
+            if idle_seconds > IDLE_TIMEOUT_SECONDS:
+                logger.info("Shutting down idle worker pool (idle %.0fs)", idle_seconds)
+                self._pool.shutdown(wait=False)
+                self._pool = None
 
     def transcribe(self, audio_path: str, model: str | None = None) -> TranscriptionResult:
-        """Transcribe the audio file at *audio_path* and return segments with duration."""
+        """Submit transcription to the process pool and wait for the result."""
         model_name = model or settings.whisper_model
-        whisper_model = self._load_model(model_name)
+        logger.info("Submitting transcription of '%s' (model=%s) to pool", audio_path, model_name)
 
-        logger.info(
-            "Starting transcription of '%s' with model '%s'",
-            audio_path,
-            model_name,
-        )
-        t0 = time.monotonic()
+        with self._lock:
+            pool = self._get_pool()
+            future = pool.submit(
+                _transcribe_in_worker,
+                audio_path,
+                model_name,
+                settings.model_dir,
+                settings.whisper_compute_type,
+            )
 
-        raw_segments, info = whisper_model.transcribe(audio_path)
+        result = future.result()  # blocks outside lock
+        self._last_used = time.monotonic()
 
-        segments: list[Segment] = [
-            Segment(start=seg.start, end=seg.end, text=seg.text.strip()) for seg in raw_segments
-        ]
-
-        elapsed = time.monotonic() - t0
-        logger.info(
-            "Transcription complete in %.2fs: %d segment(s), duration=%.2fs",
-            elapsed,
-            len(segments),
-            info.duration,
+        return TranscriptionResult(
+            segments=[Segment(**s) for s in result["segments"]],
+            duration=result["duration"],
         )
 
-        return TranscriptionResult(segments=segments, duration=info.duration)
 
-
-# Module-level singleton — shared across all requests in a single process.
+# Module-level singleton
 whisper_service = WhisperService()

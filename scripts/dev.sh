@@ -45,10 +45,10 @@ printf "%b%-10s%b Starting on :3000\n" "${MAGENTA}" "[UI]"      "${RESET}"
 printf "\n"
 
 run_service "${CYAN}" "[API]" \
-  bash -c "cd '${REPO_ROOT}/api' && ./gradlew bootRun"
+  bash -c "cd '${REPO_ROOT}/api' && LOG_DIR='${REPO_ROOT}/api/logs/dev' ./gradlew bootRun"
 
 run_service "${YELLOW}" "[SIDECAR]" \
-  bash -c "cd '${REPO_ROOT}/ml-sidecar' && uv run uvicorn app.main:app --host 0.0.0.0 --port 8100 --reload"
+  bash -c "cd '${REPO_ROOT}/ml-sidecar' && LOG_DIR='${REPO_ROOT}/ml-sidecar/logs/dev' uv run uvicorn app.main:app --host 0.0.0.0 --port 8100"
 
 run_service "${MAGENTA}" "[UI]" \
   bash -c "cd '${REPO_ROOT}/frontend' && npm run dev"

@@ -35,8 +35,22 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+
+    from app.services.whisper_service import whisper_service
+
     logger.info("LocalLoom ML Sidecar starting up on %s:%d", settings.host, settings.port)
+
+    # Background task to shut down idle Whisper worker processes
+    async def idle_checker():
+        while True:
+            await asyncio.sleep(30)
+            whisper_service.shutdown_if_idle()
+
+    task = asyncio.create_task(idle_checker())
     yield
+    task.cancel()
+    whisper_service.shutdown_if_idle()
     logger.info("LocalLoom ML Sidecar shutting down")
 
 

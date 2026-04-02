@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import tempfile
@@ -65,7 +66,8 @@ async def transcribe(
             tmp_path,
         )
 
-        result = whisper_service.transcribe(tmp_path, model=model)
+        # Run in thread pool to avoid blocking the async event loop
+        result = await asyncio.to_thread(whisper_service.transcribe, tmp_path, model)
         return result
 
     except HTTPException:

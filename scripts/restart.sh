@@ -3,6 +3,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Back up data before restart (best-effort — don't block restart on failure)
+bash "$REPO_ROOT/scripts/backup.sh" || echo "    (backup skipped — non-critical)"
+
 echo "==> Killing running services..."
 lsof -ti :8080 2>/dev/null | xargs kill -9 2>/dev/null || true
 lsof -ti :8100 2>/dev/null | xargs kill -9 2>/dev/null || true

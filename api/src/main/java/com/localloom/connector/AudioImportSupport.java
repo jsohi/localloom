@@ -16,6 +16,7 @@ import com.localloom.service.AudioService;
 import com.localloom.service.EmbeddingService;
 import com.localloom.service.JobService;
 import com.localloom.service.MlSidecarClient;
+import com.localloom.service.SourceImportService;
 import com.localloom.service.dto.ResolvedEpisode;
 import com.localloom.service.dto.ResolvedPodcast;
 import java.time.Instant;
@@ -23,9 +24,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -47,6 +55,8 @@ public class AudioImportSupport {
   private final ContentFragmentRepository contentFragmentRepository;
   private final ObjectMapper objectMapper;
   private final TransactionTemplate tx;
+  private final int parallelEpisodes;
+  private final SourceImportService sourceImportService;
 
   public AudioImportSupport(
       final AudioService audioService,
@@ -57,7 +67,9 @@ public class AudioImportSupport {
       final ContentUnitRepository contentUnitRepository,
       final ContentFragmentRepository contentFragmentRepository,
       final ObjectMapper objectMapper,
-      final TransactionTemplate transactionTemplate) {
+      final TransactionTemplate transactionTemplate,
+      @Value("${localloom.import.parallel-episodes:8}") final int parallelEpisodes,
+      @Lazy final SourceImportService sourceImportService) {
     this.audioService = audioService;
     this.mlSidecarClient = mlSidecarClient;
     this.embeddingService = embeddingService;
@@ -67,6 +79,9 @@ public class AudioImportSupport {
     this.contentFragmentRepository = contentFragmentRepository;
     this.objectMapper = objectMapper;
     this.tx = transactionTemplate;
+    this.parallelEpisodes = parallelEpisodes;
+    this.sourceImportService = sourceImportService;
+    log.info("Audio import parallelism: {} concurrent episode(s)", parallelEpisodes);
   }
 
   /** Updates source metadata (description, icon) from the resolved podcast data. */
@@ -84,13 +99,32 @@ public class AudioImportSupport {
         });
   }
 
-  /** Creates one {@link ContentUnit} per episode, linked to the given source. */
-  public List<ContentUnit> createContentUnits(
+  /** Pair of ContentUnit and its corresponding ResolvedEpisode. */
+  public record UnitEpisodePair(ContentUnit unit, ResolvedEpisode episode) {}
+
+  /**
+   * Creates one {@link ContentUnit} per episode, skipping episodes that are already indexed
+   * (matched by externalId within the same source). Returns paired units+episodes to maintain
+   * alignment after filtering.
+   */
+  public List<UnitEpisodePair> createContentUnits(
       final Source source, final List<ResolvedEpisode> episodes) {
     return tx.execute(
         status -> {
-          final var units = new ArrayList<ContentUnit>(episodes.size());
+          final var existing = contentUnitRepository.findBySourceId(source.getId());
+          final var existingIds =
+              existing.stream()
+                  .filter(u -> u.getExternalId() != null)
+                  .map(ContentUnit::getExternalId)
+                  .collect(java.util.stream.Collectors.toSet());
+
+          final var pairs = new ArrayList<UnitEpisodePair>(episodes.size());
+          var skipped = 0;
           for (final var episode : episodes) {
+            if (episode.externalId() != null && existingIds.contains(episode.externalId())) {
+              skipped++;
+              continue;
+            }
             final var unit = new ContentUnit();
             unit.setSource(source);
             unit.setTitle(episode.title());
@@ -100,9 +134,13 @@ public class AudioImportSupport {
             unit.setStatus(ContentUnitStatus.PENDING);
             unit.setPublishedAt(episode.publishedAt());
             unit.setMetadata(buildEpisodeMetadata(episode));
-            units.add(contentUnitRepository.save(unit));
+            pairs.add(new UnitEpisodePair(contentUnitRepository.save(unit), episode));
           }
-          return units;
+          if (skipped > 0) {
+            log.info(
+                "Skipped {} already-indexed episode(s) for sourceId={}", skipped, source.getId());
+          }
+          return pairs;
         });
   }
 
@@ -123,13 +161,24 @@ public class AudioImportSupport {
       throw new IllegalStateException("No audio URL for episode: " + episode.title());
     }
 
+    final var totalStart = System.currentTimeMillis();
+    checkCancelled(source.getId(), episode.title());
+
     setUnitStatus(unit, ContentUnitStatus.FETCHING);
+    final var dlStart = System.currentTimeMillis();
     log.debug("Downloading audio for contentUnitId={} url={}", contentUnitId, audioUrl);
     final var wavFile = audioService.downloadAndConvert(audioUrl, contentUnitId, isYoutube);
+    final var dlMs = System.currentTimeMillis() - dlStart;
+
+    checkCancelled(source.getId(), episode.title());
 
     setUnitStatus(unit, ContentUnitStatus.TRANSCRIBING);
+    final var txStart = System.currentTimeMillis();
     log.debug("Transcribing contentUnitId={}", contentUnitId);
     final var transcription = mlSidecarClient.transcribe(wavFile);
+    final var txMs = System.currentTimeMillis() - txStart;
+
+    checkCancelled(source.getId(), episode.title());
 
     final var fragments = saveFragments(unit, transcription);
 
@@ -144,6 +193,7 @@ public class AudioImportSupport {
         });
 
     setUnitStatus(unit, ContentUnitStatus.EMBEDDING);
+    final var emStart = System.currentTimeMillis();
     log.debug("Embedding contentUnitId={}", contentUnitId);
     embeddingService.embedContent(
         source.getId(),
@@ -152,9 +202,17 @@ public class AudioImportSupport {
         source.getSourceType(),
         ContentType.AUDIO,
         fragments);
+    final var emMs = System.currentTimeMillis() - emStart;
 
+    final var totalMs = System.currentTimeMillis() - totalStart;
     setUnitStatus(unit, ContentUnitStatus.INDEXED);
-    log.info("Episode indexed: contentUnitId={} title='{}'", contentUnitId, unit.getTitle());
+    log.info(
+        "Episode indexed: '{}' — total={}s (download={}s, transcribe={}s, embed={}s)",
+        unit.getTitle(),
+        totalMs / 1000,
+        dlMs / 1000,
+        txMs / 1000,
+        emMs / 1000);
   }
 
   /**
@@ -171,34 +229,72 @@ public class AudioImportSupport {
 
     if (episodes.isEmpty()) {
       log.warn("No episodes found for sourceId={}", source.getId());
+      finishSource(source, SyncStatus.IDLE);
       jobService.completeJob(jobId);
       return;
     }
 
-    final var units = createContentUnits(source, episodes);
-    log.info("Created {} ContentUnit(s) for sourceId={}", units.size(), source.getId());
+    final var pairs = createContentUnits(source, episodes);
+    final var total = pairs.size();
 
-    final var total = units.size();
-    var completed = 0;
-    final var errors = new ArrayList<String>();
+    if (total == 0) {
+      log.info("All episodes already indexed for sourceId={}", source.getId());
+      finishSource(source, SyncStatus.IDLE);
+      jobService.completeJob(jobId);
+      return;
+    }
 
-    for (var i = 0; i < total; i++) {
-      final var unit = units.get(i);
-      final var episode = episodes.get(i);
-      try {
-        processEpisode(source, unit, episode, isYoutube);
-      } catch (Exception e) {
-        log.error(
-            "Failed to process episode '{}' (contentUnitId={}): {}",
-            episode.title(),
-            unit.getId(),
-            e.getMessage(),
-            e);
-        errors.add(episode.title() + ": " + e.getMessage());
-        setUnitStatus(unit, ContentUnitStatus.ERROR);
+    log.info(
+        "Processing {} new episode(s) with parallelism={} for sourceId={}",
+        total,
+        parallelEpisodes,
+        source.getId());
+
+    final var completedCount = new AtomicInteger(0);
+    final var errors = new ConcurrentLinkedQueue<String>();
+    final var semaphore = new Semaphore(parallelEpisodes);
+
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      final var futures = new ArrayList<CompletableFuture<Void>>(total);
+
+      for (final var pair : pairs) {
+        final var unit = pair.unit();
+        final var episode = pair.episode();
+        futures.add(
+            CompletableFuture.runAsync(
+                () -> {
+                  try {
+                    semaphore.acquire();
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    errors.add(episode.title() + ": interrupted");
+                    return;
+                  }
+                  try {
+                    processEpisode(source, unit, episode, isYoutube);
+                  } catch (Exception e) {
+                    if (sourceImportService.isCancelled(source.getId())) {
+                      log.info("Episode skipped (import cancelled): '{}'", episode.title());
+                    } else {
+                      log.error(
+                          "Failed to process episode '{}' (contentUnitId={}): {}",
+                          episode.title(),
+                          unit.getId(),
+                          e.getMessage(),
+                          e);
+                      errors.add(episode.title() + ": " + e.getMessage());
+                      setUnitStatus(unit, ContentUnitStatus.ERROR);
+                    }
+                  } finally {
+                    semaphore.release();
+                    final var done = completedCount.incrementAndGet();
+                    jobService.updateProgress(jobId, (double) done / total);
+                  }
+                },
+                executor));
       }
-      completed++;
-      jobService.updateProgress(jobId, (double) completed / total);
+
+      CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
     }
 
     if (errors.isEmpty()) {
@@ -236,6 +332,12 @@ public class AudioImportSupport {
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------
+
+  private void checkCancelled(final UUID sourceId, final String episodeTitle) {
+    if (sourceImportService.isCancelled(sourceId)) {
+      throw new IllegalStateException("Import cancelled for episode: " + episodeTitle);
+    }
+  }
 
   private void setUnitStatus(final ContentUnit unit, final ContentUnitStatus status) {
     tx.executeWithoutResult(

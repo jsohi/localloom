@@ -75,6 +75,13 @@ export default function SourceDetailPage() {
     loadSource();
   }, [loadSource]);
 
+  // Auto-refresh while source is syncing
+  useEffect(() => {
+    if (!source || source.syncStatus !== 'SYNCING') return;
+    const interval = setInterval(loadSource, 3000);
+    return () => clearInterval(interval);
+  }, [source?.syncStatus, loadSource]);
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

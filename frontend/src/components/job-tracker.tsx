@@ -60,7 +60,17 @@ export function JobTracker({ refreshKey }: JobTrackerProps) {
       try {
         const allJobs = await getJobs();
         if (!isMounted) return;
-        const activeJobs = allJobs.filter((j) => j.status === 'PENDING' || j.status === 'RUNNING');
+        // Filter active jobs. RUNNING jobs always show. PENDING jobs older than 5 minutes
+        // are hidden (likely stale from a previous server crash or incomplete import).
+        const STALE_MS = 5 * 60 * 1000;
+        const now = Date.now();
+        const activeJobs = allJobs.filter((j) => {
+          if (j.status === 'RUNNING') return true;
+          if (j.status === 'PENDING') {
+            return now - new Date(j.createdAt).getTime() < STALE_MS;
+          }
+          return false;
+        });
 
         const jobDetails: JobDetail[] = await Promise.all(
           activeJobs.map(async (job) => {

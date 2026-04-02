@@ -5,7 +5,8 @@ import logging.handlers
 import os
 import queue
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
@@ -22,16 +23,48 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
-class UtcMillisFormatter(logging.Formatter):
-    """Match the Java API's Log4j2 ISO-8601 UTC format for cross-service log correlation."""
+class NycMillisFormatter(logging.Formatter):
+    """Format timestamps in America/New_York timezone for cross-service log correlation."""
+
+    _TZ = ZoneInfo("America/New_York")
 
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
-        dt = datetime.fromtimestamp(record.created, tz=UTC)
-        return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(record.msecs):03d}Z"
+        dt = datetime.fromtimestamp(record.created, tz=self._TZ)
+        offset = dt.strftime("%z")
+        offset_fmt = offset[:3] + ":" + offset[3:]  # +00:00 format
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(record.msecs):03d}" + offset_fmt
+
+
+def _rotate_on_startup() -> None:
+    """Roll the previous log file into a gzipped archive on process start."""
+    import glob
+    import gzip
+    import shutil
+    import time
+
+    log_path = os.path.join(LOG_DIR, "ml-sidecar.log")
+
+    # Roll current log to timestamped gz archive
+    if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
+        ts = datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d-%H%M%S")
+        gz_path = os.path.join(LOG_DIR, f"ml-sidecar-{ts}.log.gz")
+        with open(log_path, "rb") as f_in, gzip.open(gz_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        os.truncate(log_path, 0)
+
+    # Delete archives older than 10 days
+    cutoff = time.time() - 10 * 86400
+    for gz_file in glob.glob(os.path.join(LOG_DIR, "ml-sidecar-*.log.gz")):
+        if os.path.getmtime(gz_file) < cutoff:
+            os.remove(gz_file)
 
 
 def configure_logging() -> None:
     os.makedirs(LOG_DIR, exist_ok=True)
+    # Only rotate in the main process — workers inherit the rotated state
+    if os.environ.get("_LOCALLOOM_LOG_ROTATED") != "1":
+        _rotate_on_startup()
+        os.environ["_LOCALLOOM_LOG_ROTATED"] = "1"
 
     config = {
         "version": 1,
@@ -41,7 +74,7 @@ def configure_logging() -> None:
         },
         "formatters": {
             "standard": {
-                "()": UtcMillisFormatter,
+                "()": NycMillisFormatter,
                 "format": (
                     "%(asctime)s [ml-sidecar] %(levelname)-5s"
                     " [%(request_id)s] %(name)s - %(message)s"

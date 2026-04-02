@@ -1,6 +1,8 @@
 package com.localloom.controller;
 
+import com.localloom.model.ContentUnitStatus;
 import com.localloom.model.Job;
+import com.localloom.repository.ContentUnitRepository;
 import com.localloom.service.JobService;
 import java.util.List;
 import java.util.UUID;
@@ -19,16 +21,30 @@ public class JobController {
 
   private static final Logger log = LogManager.getLogger(JobController.class);
 
-  private final JobService jobService;
+  private static final List<ContentUnitStatus> ACTIVE_UNIT_STATUSES =
+      List.of(
+          ContentUnitStatus.FETCHING,
+          ContentUnitStatus.TRANSCRIBING,
+          ContentUnitStatus.EXTRACTING,
+          ContentUnitStatus.EMBEDDING);
 
-  public JobController(final JobService jobService) {
+  private final JobService jobService;
+  private final ContentUnitRepository contentUnitRepository;
+
+  public JobController(
+      final JobService jobService, final ContentUnitRepository contentUnitRepository) {
     this.jobService = jobService;
+    this.contentUnitRepository = contentUnitRepository;
   }
 
   @GetMapping
   public List<Job> listActiveJobs() {
     final var active = jobService.getActiveJobs();
-    log.debug("Active jobs: {}", active.size());
+    if (!active.isEmpty()) {
+      final var processing = contentUnitRepository.countByStatusIn(ACTIVE_UNIT_STATUSES);
+      final var pending = contentUnitRepository.countByStatusIn(List.of(ContentUnitStatus.PENDING));
+      log.debug("Active jobs: {}, processing: {}, pending: {}", active.size(), processing, pending);
+    }
     return active;
   }
 
