@@ -5,6 +5,7 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -27,6 +28,7 @@ public class OllamaService {
     log.info("OllamaService configured with base URL: {}", baseUrl);
   }
 
+  @Cacheable("models")
   @SuppressWarnings("unchecked")
   public List<ModelInfo> listModels() {
     log.debug("Listing available Ollama models");
