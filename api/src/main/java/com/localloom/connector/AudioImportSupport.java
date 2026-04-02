@@ -189,6 +189,9 @@ public class AudioImportSupport {
     final var transcription = mlSidecarClient.transcribe(wavFile);
     final var txMs = System.currentTimeMillis() - txStart;
 
+    // Delete the WAV file immediately after transcription — no longer needed
+    audioService.deleteAudioFile(wavFile);
+
     checkCancelled(source.getId(), episode.title());
 
     final var fragments = saveFragments(unit, transcription);

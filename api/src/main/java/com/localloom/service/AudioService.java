@@ -66,6 +66,23 @@ public class AudioService {
     if (!skipDependencyCheck) {
       validateDependencies();
     }
+    cleanupOrphanedAudioFiles();
+  }
+
+  /** Deletes any WAV files left over from interrupted imports. */
+  private void cleanupOrphanedAudioFiles() {
+    try (var stream = Files.newDirectoryStream(audioDir, "*.wav")) {
+      var count = 0;
+      for (final var file : stream) {
+        deleteQuietly(file);
+        count++;
+      }
+      if (count > 0) {
+        log.info("Cleaned up {} orphaned audio file(s) at startup", count);
+      }
+    } catch (IOException e) {
+      log.warn("Could not clean up audio directory: {}", e.getMessage());
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -244,6 +261,12 @@ public class AudioService {
    *
    * @param contentUnitIds IDs of the content units whose audio files should be removed
    */
+  /** Deletes a single audio file after transcription. */
+  public void deleteAudioFile(final Path audioFile) {
+    deleteQuietly(audioFile);
+    log.debug("Deleted transcribed audio: {}", audioFile);
+  }
+
   public void deleteAudioFiles(final List<UUID> contentUnitIds) {
     for (final var id : contentUnitIds) {
       final var pattern = id.toString() + "*";
