@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-**LocalLoom** is a privacy-first, locally-running application that transforms multiple knowledge sources into a unified, searchable, queryable knowledge base. Users connect sources — podcasts, Confluence pages, Microsoft Teams messages, GitHub repositories, and file uploads — and the system ingests, indexes, and semantically links the content. A local LLM answers questions across all sources, delivering responses in both text and audio format.
+**LocalLoom** is a privacy-first, locally-running application that transforms multiple knowledge sources into a unified, searchable, queryable knowledge base. Users connect sources — podcasts and other RSS/media feeds, YouTube videos, web pages, local file uploads, and (opt-in) Microsoft Teams and GitHub — and the system ingests, indexes, and semantically links the content. A local LLM answers questions across all sources, delivering responses in both text and audio format.
 
 Everything runs on the user's machine. No cloud APIs unless the user explicitly configures an external connector.
 
@@ -13,7 +13,7 @@ Knowledge workers accumulate critical information across disconnected tools — 
 ### Solution
 
 LocalLoom creates a unified personal knowledge base by:
-1. Connecting to diverse sources: podcast feeds, Confluence spaces, MS Teams channels, GitHub repos, and local file uploads
+1. Connecting to diverse sources: RSS/podcast feeds, YouTube videos, web pages, local file uploads, and (opt-in) Microsoft Teams and GitHub
 2. Extracting content — transcribing audio via Whisper, pulling pages, threads, and code
 3. Indexing all content into a vector database for semantic search
 4. Answering natural language questions using RAG (Retrieval-Augmented Generation) with a local LLM, citing across source types
@@ -97,7 +97,7 @@ A lightweight internal service exposing ML capabilities for audio sources only. 
 
 **Why Python?** Whisper and Piper TTS have no production-quality Java equivalents. The sidecar is minimal — just 2 endpoints. Embeddings, chunking, and vector search are handled by Spring AI in the Java layer.
 
-**Note:** The Python sidecar is only needed for audio-based sources (podcasts). Text-based sources (Confluence, Teams, GitHub, file uploads) are handled entirely in the Java layer. With Spring AI, the sidecar only handles tasks that require Python-native ML libraries (Whisper for speech-to-text, Piper for text-to-speech).
+**Note:** The Python sidecar is only needed for audio-based sources (podcasts, YouTube) and TTS output. Text-based sources (web pages, file uploads, Teams, GitHub) are handled entirely in the Java layer. With Spring AI, the sidecar only handles tasks that require Python-native ML libraries (Whisper for speech-to-text, Piper for text-to-speech).
 
 #### Frontend (Next.js 14 + TypeScript)
 The user interface. Communicates exclusively with the Spring Boot API server.
@@ -160,8 +160,8 @@ The sidecar pattern allows independent scaling and deployment. The Python sideca
 ### 3.2 Entity Details
 
 **Source**
-- `source_type`: `PODCAST`, `CONFLUENCE`, `TEAMS`, `GITHUB`, `FILE_UPLOAD`
-- `origin_url`: original URL or path provided by user (RSS feed, Confluence space URL, Teams channel URL, GitHub repo URL, or null for uploads)
+- `source_type`: `MEDIA`, `YOUTUBE`, `WEB_PAGE`, `FILE_UPLOAD`, `TEAMS`, `GITHUB`
+- `origin_url`: original URL or path provided by user (RSS feed, YouTube URL, web-page URL, Teams channel URL, GitHub repo URL, or null for uploads)
 - `icon_url`: visual icon for the source (artwork, favicon, etc.)
 - `config` (JSONB): connector-specific configuration — credentials, filters, sync preferences
 - `sync_status`: `IDLE`, `SYNCING`, `ERROR`
@@ -169,20 +169,23 @@ The sidecar pattern allows independent scaling and deployment. The Python sideca
 
 Example `config` values per source type:
 ```json
-// PODCAST
-{"feed_url": "https://feeds.example.com/pod.xml", "source_url": "https://youtube.com/...", "download_format": "audio"}
+// MEDIA
+{"feed_url": "https://feeds.example.com/pod.xml", "source_url": "https://example.com/audio.mp3", "download_format": "audio"}
 
-// CONFLUENCE
-{"base_url": "https://myteam.atlassian.net", "space_key": "ENG", "api_token": "encrypted:...", "include_labels": ["architecture"]}
+// YOUTUBE
+{"url": "https://www.youtube.com/watch?v=xxxxxxxxxxx"}
 
-// TEAMS
-{"tenant_id": "...", "channel_id": "...", "access_token": "encrypted:...", "since_days": 90}
-
-// GITHUB
-{"repo_url": "https://github.com/org/repo", "branch": "main", "include_patterns": ["*.md", "*.java"], "access_token": "encrypted:..."}
+// WEB_PAGE
+{"url": "https://example.com/blog/post"}
 
 // FILE_UPLOAD
 {"upload_dir": "data/uploads/src_abc123"}
+
+// TEAMS — planned, opt-in
+{"tenant_id": "...", "channel_id": "...", "access_token": "encrypted:...", "since_days": 90}
+
+// GITHUB — planned, opt-in
+{"repo_url": "https://github.com/org/repo", "branch": "main", "include_patterns": ["*.md", "*.java"], "access_token": "encrypted:..."}
 ```
 
 **ContentUnit**
@@ -198,13 +201,13 @@ Example `metadata` values per content type:
 // AUDIO (podcast episode)
 {"duration_seconds": 3621, "audio_url": "https://...", "audio_path": "data/audio/ep123.wav", "author": "Host Name"}
 
-// PAGE (Confluence)
-{"space_key": "ENG", "page_version": 12, "labels": ["api", "design"], "last_modified_by": "jane.doe"}
+// PAGE (web page)
+{"url": "https://example.com/blog/post", "author": "jane.doe", "published_at": "2025-12-01T10:00:00Z", "labels": ["api", "design"]}
 
-// MESSAGE_THREAD (Teams)
+// MESSAGE_THREAD (Teams — planned, opt-in)
 {"channel_name": "general", "participants": ["alice", "bob"], "message_count": 14, "thread_started_by": "alice"}
 
-// CODE_FILE (GitHub)
+// CODE_FILE (GitHub — planned, opt-in)
 {"file_path": "src/main/java/App.java", "language": "java", "sha": "abc123", "size_bytes": 4200}
 
 // TEXT_FILE (upload)
@@ -221,13 +224,13 @@ Example `location` values per fragment type:
 // TIMED_SEGMENT (podcast transcript)
 {"start_time": 125.4, "end_time": 155.2}
 
-// SECTION (Confluence page)
+// SECTION (web page)
 {"heading": "API Design", "heading_level": 2, "anchor": "api-design"}
 
-// MESSAGE (Teams thread)
+// MESSAGE (Teams thread — planned, opt-in)
 {"author": "alice", "sent_at": "2025-12-01T10:30:00Z", "message_id": "msg_123"}
 
-// CODE_BLOCK (GitHub file)
+// CODE_BLOCK (GitHub file — planned, opt-in)
 {"start_line": 10, "end_line": 45, "function_name": "processRequest"}
 
 // TEXT_BLOCK (uploaded file)
@@ -245,9 +248,9 @@ Example `location` values per fragment type:
 - `sources` (JSONB): polymorphic citation array with `source_type` discriminator:
 ```json
 [
-  {"source_type": "PODCAST", "content_unit_id": "...", "title": "Episode 42", "start_time": 125.4, "end_time": 155.2, "snippet": "..."},
-  {"source_type": "CONFLUENCE", "content_unit_id": "...", "title": "API Design", "section": "Authentication", "snippet": "..."},
-  {"source_type": "GITHUB", "content_unit_id": "...", "title": "App.java", "file_path": "src/main/java/App.java", "start_line": 10, "end_line": 45, "snippet": "..."}
+  {"source_type": "MEDIA", "content_unit_id": "...", "title": "Episode 42", "start_time": 125.4, "end_time": 155.2, "snippet": "..."},
+  {"source_type": "WEB_PAGE", "content_unit_id": "...", "title": "API Design", "section": "Authentication", "snippet": "..."},
+  {"source_type": "YOUTUBE", "content_unit_id": "...", "title": "Deep Dive Video", "start_time": 312.0, "end_time": 345.0, "snippet": "..."}
 ]
 ```
 - `audio_path`: path to TTS-generated audio file
@@ -260,9 +263,9 @@ Each source gets its own ChromaDB collection: `source_{source_id}`
 |-------|------|-------------|
 | `id` | string | `{content_unit_id}_{chunk_index}` |
 | `document` | string | Chunk text (~500 tokens) |
-| `embedding` | float[] | Vector (dimension depends on Ollama embedding model, e.g. nomic-embed-text) |
+| `embedding` | float[] | Vector (dimension depends on Ollama embedding model; default `mxbai-embed-large` = 1024-dim) |
 | `metadata.source_id` | string | Source UUID |
-| `metadata.source_type` | string | `PODCAST`, `CONFLUENCE`, etc. |
+| `metadata.source_type` | string | `MEDIA`, `YOUTUBE`, `WEB_PAGE`, `FILE_UPLOAD`, `TEAMS`, `GITHUB` |
 | `metadata.content_unit_id` | string | ContentUnit UUID |
 | `metadata.content_type` | string | `AUDIO`, `PAGE`, etc. |
 | `metadata.content_unit_title` | string | For citation display |
@@ -287,10 +290,10 @@ User connects source or uploads file
 │  Connector queries   │
 │  external system:    │
 │  RSS feed episodes,  │
-│  Confluence pages,   │
-│  Teams threads,      │
-│  GitHub file tree,   │
-│  uploaded file list  │
+│  YouTube videos,     │
+│  web pages,          │
+│  uploaded files,     │
+│  Teams/GitHub (opt-in)│
 │                      │
 │  Creates ContentUnit │
 │  records (PENDING)   │
@@ -299,19 +302,19 @@ User connects source or uploads file
 ┌─────────────────────┐
 │ 2. Fetch             │  Spring Boot (background job)
 │                      │
-│  Podcast: download   │
-│  audio via yt-dlp/   │
-│  HTTP, convert to    │
+│  Media/YouTube:      │
+│  download audio via  │
+│  yt-dlp/HTTP, to     │
 │  16kHz mono WAV      │
 │                      │
-│  Confluence: REST    │
-│  API → page HTML     │
+│  Web page: HTTP GET  │
+│  → HTML → text       │
 │                      │
-│  Teams: Graph API    │
-│  → thread messages   │
+│  Teams (planned):    │
+│  Graph API → msgs    │
 │                      │
-│  GitHub: clone/pull  │
-│  or API → raw files  │
+│  GitHub (planned):   │
+│  clone/API → files   │
 │                      │
 │  Upload: already     │
 │  local (skip)        │
@@ -358,8 +361,8 @@ User connects source or uploads file
 
 #### Status Lifecycle by Content Type
 
-- **Audio** (podcast episodes): `PENDING` → `FETCHING` → `TRANSCRIBING` → `EMBEDDING` → `INDEXED`
-- **Text** (Confluence, Teams, GitHub): `PENDING` → `FETCHING` → `EXTRACTING` → `EMBEDDING` → `INDEXED`
+- **Audio** (podcast / YouTube): `PENDING` → `FETCHING` → `TRANSCRIBING` → `EMBEDDING` → `INDEXED`
+- **Text** (web pages; Teams / GitHub when enabled): `PENDING` → `FETCHING` → `EXTRACTING` → `EMBEDDING` → `INDEXED`
 - **Upload** (file uploads): `PENDING` → `EXTRACTING` → `EMBEDDING` → `INDEXED`
 
 Any stage can transition to `ERROR` with a message stored on the Job.
@@ -409,7 +412,7 @@ User asks: "What did we decide about API authentication?"
 │                          │
 │  POST /api/chat          │
 │  stream: true            │
-│  model: llama4:scout     │
+│  model: gemma3:27b       │
 │                          │
 │  Stream tokens via SSE   │
 │  to frontend             │
@@ -446,11 +449,12 @@ All endpoints prefixed with `/api/v1/`.
 **Example Response:**
 ```json
 [
-  {"type": "PODCAST", "name": "Podcast (RSS / YouTube / Apple / Spotify)", "enabled": true, "configured": true},
-  {"type": "FILE_UPLOAD", "name": "File Upload", "enabled": true, "configured": true},
-  {"type": "CONFLUENCE", "name": "Confluence", "enabled": false, "configured": false},
-  {"type": "TEAMS", "name": "Microsoft Teams", "enabled": false, "configured": false},
-  {"type": "GITHUB", "name": "GitHub", "enabled": false, "configured": false}
+  {"type": "MEDIA", "name": "Media", "enabled": true},
+  {"type": "YOUTUBE", "name": "YouTube", "enabled": true},
+  {"type": "FILE_UPLOAD", "name": "File Upload", "enabled": true},
+  {"type": "WEB_PAGE", "name": "Web Page", "enabled": true},
+  {"type": "TEAMS", "name": "Teams", "enabled": false},
+  {"type": "GITHUB", "name": "GitHub", "enabled": false}
 ]
 ```
 
@@ -489,7 +493,7 @@ event: token
 data: {"content": " the discussion"}
 
 event: sources
-data: {"sources": [{"source_type": "PODCAST", "title": "Episode 42", "start_time": 125.4, "snippet": "..."}, {"source_type": "CONFLUENCE", "title": "API Design", "section": "Auth", "snippet": "..."}]}
+data: {"sources": [{"source_type": "MEDIA", "title": "Episode 42", "start_time": 125.4, "snippet": "..."}, {"source_type": "WEB_PAGE", "title": "API Design", "section": "Auth", "snippet": "..."}]}
 
 event: done
 data: {"message_id": "uuid"}
@@ -572,25 +576,18 @@ in the Java layer — no longer routed through the Python sidecar.
 
 ### 6.2 ML Model Recommendations
 
-> **Recommended baseline:** 48 GB unified memory (e.g., Apple M-series). This comfortably runs `llama4:scout` alongside embeddings, ChromaDB, and the full stack.
+> See **[docs/MODELS.md](./MODELS.md)** for the full model-selection guide (defaults, alternatives, switching, hardware tradeoffs). This section is a short summary only.
 
-| Model | Size | RAM | Use Case |
-|-------|------|-----|----------|
-| `llama4:scout` | ~17 GB | 24 GB | Default LLM — Llama 4 Scout, good quality, fast on 48 GB+ machines |
-| `llama4:maverick` | ~50 GB | 64 GB | Premium LLM — Llama 4 Maverick, requires 64 GB+ RAM (M2/M3/M4 Max/Ultra) |
-| `large-v3-turbo` (Whisper) | ~3 GB | 4 GB | Default transcription — near-best quality, 2-3x faster |
-| `nomic-embed-text` | ~275 MB | 500 MB | Embeddings via Ollama — 768-dim, good quality |
-| `en_US-amy-medium` (Piper) | 60 MB | 100 MB | TTS — natural voice, fast |
+**Current defaults** (as configured in `api/src/main/resources/application.yml` and `ml-sidecar/app/config.py`):
 
-**Memory budget (48 GB system):**
-| Component | Estimated RAM |
-|-----------|--------------|
-| `llama4:scout` | ~24 GB |
-| `nomic-embed-text` | ~500 MB |
-| Whisper `large-v3-turbo` | ~4 GB |
-| PostgreSQL + ChromaDB | ~2 GB |
-| Spring Boot + Python Sidecar | ~2 GB |
-| OS + headroom | ~15.5 GB |
+| Role | Model | Source |
+|------|-------|--------|
+| Chat LLM | `gemma3:27b` | Ollama |
+| Embeddings | `mxbai-embed-large` (1024-dim) | Ollama |
+| Transcription | `large-v3-turbo` | Whisper (via sidecar) |
+| Text-to-speech | `en_US-lessac-high` | Piper (via sidecar) |
+
+**Recommended baseline:** 48 GB unified memory (e.g., Apple M-series) comfortably runs `gemma3:27b` alongside embeddings, ChromaDB, Postgres, and the full stack. Smaller machines can switch to lighter chat models (e.g., `gemma3:12b`, `llama3.2:3b`) via the `OLLAMA_CHAT_MODEL` env var — see `docs/MODELS.md`.
 
 ### 6.3 Log4j2 Configuration
 
@@ -637,11 +634,11 @@ Content is split into overlapping chunks for embedding and retrieval. The base s
 
 | Source Type | Strategy |
 |-------------|----------|
-| **Podcast (Audio)** | 500-token chunks at sentence boundaries (~2-3 minutes of speech). Unchanged from base strategy. |
-| **Confluence (Pages)** | Chunk by heading sections. Each H2/H3 section becomes a fragment; long sections are further split at 500 tokens. |
-| **GitHub (Code)** | Chunk by function/class boundaries using language-aware parsing. Whole functions kept intact where possible; large functions split at logical breakpoints. |
-| **Teams (Messages)** | Group messages by thread. Chunk by conversation turns; each chunk includes enough context (author, timestamp) for citation. |
+| **Media / YouTube (Audio)** | 500-token chunks at sentence boundaries (~2-3 minutes of speech). Unchanged from base strategy. |
+| **Web Page** | Chunk by heading sections. Each H2/H3 section becomes a fragment; long sections are further split at 500 tokens. |
 | **File Upload (Text)** | Standard 500-token split at sentence boundaries. PDF/docx converted to text first. |
+| **GitHub (Code) — planned** | Chunk by function/class boundaries using language-aware parsing. Whole functions kept intact where possible; large functions split at logical breakpoints. |
+| **Teams (Messages) — planned** | Group messages by thread. Chunk by conversation turns; each chunk includes enough context (author, timestamp) for citation. |
 
 ### RAG Prompt Template
 
@@ -668,27 +665,31 @@ User: {question}
 
 ## 8. Source Connector Configuration
 
+> See **[docs/CONFIGURATION.md](./CONFIGURATION.md)** for the full environment-variable reference.
+
 ### application.yml
 
 ```yaml
 localloom:
   connectors:
-    podcast:
-      enabled: true    # enabled by default
+    media:
+      enabled: true    # RSS / podcasts / direct audio URLs — enabled by default
+    youtube:
+      enabled: true    # YouTube videos / playlists — enabled by default
     file-upload:
-      enabled: true    # enabled by default
-    confluence:
-      enabled: false   # user opts in via Settings UI
+      enabled: true    # Local file uploads — enabled by default
+    web-page:
+      enabled: true    # Single web pages — enabled by default
     teams:
-      enabled: false   # user opts in via Settings UI
+      enabled: false   # Planned, opt-in
     github:
-      enabled: false   # user opts in via Settings UI
+      enabled: false   # Planned, opt-in
 ```
 
-- **Podcast** and **File Upload** are enabled by default — they require no external credentials.
-- **Confluence**, **Teams**, and **GitHub** are disabled by default. The user must explicitly enable them in the Settings UI and provide the required credentials (API tokens, tenant IDs, etc.).
-- Each connector bean uses `@ConditionalOnProperty` so disabled connectors are never instantiated.
-- The Settings UI exposes toggle switches for each connector alongside credential input fields. Credentials are stored in `Source.config` (JSONB) and encrypted at rest.
+- **Media**, **YouTube**, **File Upload**, and **Web Page** are enabled by default — they require no external credentials.
+- **Teams** and **GitHub** are planned and disabled by default. When implemented, users will explicitly enable them in the Settings UI and provide the required credentials (API tokens, tenant IDs, etc.).
+- Connector availability is driven by `localloom.connectors.*.enabled` flags read via `ConnectorProperties` and exposed by `ConnectorController`.
+- When Teams/GitHub ship, credentials will be stored in `Source.config` (JSONB) and encrypted at rest.
 
 ---
 
@@ -710,7 +711,7 @@ public interface SourceConnector {
 
 - `sourceType()` — returns the `SourceType` enum this connector handles
 - `createSource()` — validates input, resolves metadata, persists a new `Source`
-- `discoverContentUnits()` — queries the external system (RSS feed, Confluence API, GitHub tree, etc.) and creates `ContentUnit` records
+- `discoverContentUnits()` — queries the external system (RSS feed, YouTube playlist, web page, GitHub tree, etc.) and creates `ContentUnit` records
 - `fetchContent()` — downloads/retrieves raw content for a single content unit
 - `extractFragments()` — parses raw content into `ContentFragment` records (transcript segments, page sections, code blocks, etc.)
 
@@ -731,7 +732,9 @@ public class ConnectorRegistry {
 }
 ```
 
-The registry auto-discovers all enabled `SourceConnector` beans at startup. Each connector is annotated with `@ConditionalOnProperty(prefix = "localloom.connectors.<type>", name = "enabled")`, so only user-enabled connectors are registered.
+The registry auto-discovers all `SourceConnector` beans at startup; the `localloom.connectors.*.enabled` flags are read via `ConnectorProperties` and used to gate the `ConnectorController` listing and runtime import requests.
+
+> **Implementation note:** the actual interface in `api/src/main/java/com/localloom/connector/SourceConnector.java` is simpler than shown above — it exposes `sourceType()` and `importSource(source, jobId, maxItems)`. The fine-grained `discover/fetch/extract` stages are implemented internally by each connector (e.g., `MediaConnector`, `YouTubeConnector`, `WebPageConnector`, `FileUploadConnector`). The design-level breakdown above documents the logical pipeline.
 
 ---
 
@@ -752,11 +755,11 @@ public interface CitationFormatter {
 
 | Source Type | Citation Format | Example |
 |-------------|----------------|---------|
-| Podcast | `[Episode: "title", start-end]` | `[Episode: "AI Safety Deep Dive", 2:05-2:35]` |
-| Confluence | `[Page: "title", section "heading"]` | `[Page: "API Design Guide", section "Authentication"]` |
-| Teams | `[Thread: "title", message by author]` | `[Thread: "Deploy plan", message by alice]` |
-| GitHub | `[File: "path", lines N-M]` | `[File: "src/main/java/App.java", lines 10-45]` |
+| Media / YouTube | `[Episode: "title", start-end]` | `[Episode: "AI Safety Deep Dive", 2:05-2:35]` |
+| Web Page | `[Page: "title", section "heading"]` | `[Page: "API Design Guide", section "Authentication"]` |
 | File Upload | `[File: "filename", page/section]` | `[File: "notes.pdf", page 3]` |
+| Teams — planned | `[Thread: "title", message by author]` | `[Thread: "Deploy plan", message by alice]` |
+| GitHub — planned | `[File: "path", lines N-M]` | `[File: "src/main/java/App.java", lines 10-45]` |
 
 The frontend renders each citation type with an appropriate link or action (jump to timestamp, open page, navigate to file, etc.).
 
@@ -764,14 +767,16 @@ The frontend renders each citation type with an appropriate link or action (jump
 
 ## 11. Security Considerations
 
-- **No external network calls by default** except: Ollama (localhost). Podcast downloads and iTunes API lookups are user-initiated.
-- **External connector API calls are user-configured** — the user explicitly enables connectors and provides credentials. No calls to Confluence, Teams, or GitHub unless the user opts in.
-- **Connector credentials** — API tokens and access keys are stored in `Source.config` (JSONB), encrypted at rest. Credentials are never logged or exposed via the API.
-- **No authentication** required — single-user local application
-- **File path validation** — sanitize all file paths to prevent directory traversal
-- **Input validation** — validate URLs before processing (allowlist of supported domains per connector)
-- **Process isolation** — yt-dlp runs as subprocess with limited permissions
-- **No secrets** — no API keys required for core functionality (podcasts + file uploads)
+- **No external network calls by default** except: Ollama (localhost) and HuggingFace model downloads (first-run only, cached under `data/models`). Media/YouTube/web-page fetches and iTunes API lookups are user-initiated.
+- **External connector API calls are user-configured** — when Teams / GitHub are enabled, the user explicitly opts in and provides credentials.
+- **Optional API-key auth** — `LOCALLOOM_API_KEY` + `X-API-Key` header (see `SecurityConfig.java`). Off by default for single-user local use.
+- **SSRF protection** — `SsrfValidator` enforces `localloom.security.ssrf-allowed-hosts` on outbound URL fetches.
+- **CORS** — `LOCALLOOM_CORS_ORIGINS` (defaults to `http://localhost:3000`).
+- **Connector credentials** — will be stored in `Source.config` (JSONB) and encrypted at rest when Teams/GitHub ship. Credentials are never logged or exposed via the API.
+- **File path validation** — sanitize all file paths to prevent directory traversal.
+- **Input validation** — validate URLs before processing.
+- **Process isolation** — yt-dlp runs as a subprocess.
+- **No secrets required** for core functionality (media / YouTube / web page / file uploads).
 
 ---
 
@@ -783,7 +788,7 @@ The frontend renders each citation type with an appropriate link or action (jump
 | Python sidecar unreachable | Retry with backoff, degrade gracefully (disable audio features) |
 | Transcription fails | Mark job as ERROR, allow retry, preserve downloaded audio |
 | Audio download fails | Retry up to 3 times, mark content unit as ERROR with message |
-| External API error (Confluence, Teams, GitHub) | Retry with backoff, mark source sync_status as ERROR, show details in UI |
+| External API error (Media/YouTube/Web; future Teams, GitHub) | Retry with backoff, mark source sync_status as ERROR, show details in UI |
 | Connector credentials invalid | Mark source sync_status as ERROR, prompt user to update credentials |
 | Unsupported URL | Return validation error with list of supported formats |
 | Disk space low | Check before download/extraction, warn user |
@@ -798,7 +803,7 @@ Not in scope for initial implementation, but architecturally accommodated:
 - **Multi-language support**: Whisper supports 99 languages; UI and prompts need i18n
 - **Speaker diarization**: Identify different speakers in podcast (whisperX or pyannote)
 - **Semantic search UI**: Search across all content without asking a question
-- **Scheduled sync for live sources**: Auto-sync Confluence, Teams, and GitHub on a cron schedule for near-real-time updates
+- **Scheduled sync for live sources**: Auto-sync Media/YouTube/Web/Teams/GitHub on a cron schedule for near-real-time updates
 - **Additional connectors**: Slack, Notion, Google Docs, JIRA — implemented via the `SourceConnector` interface
 - **Mobile companion app**: API server already supports remote clients
 - **Fine-tuning**: Use ingested content to fine-tune a small model on specific domain knowledge

@@ -16,7 +16,7 @@ graph TB
             Services[Service Layer]
             Jobs[Job Scheduler<br/>@Async]
             ConnReg[ConnectorRegistry]
-            Connectors[Source Connectors<br/>Podcast · Confluence · Teams<br/>GitHub · File Upload]
+            Connectors[Source Connectors<br/>Media · YouTube · Web Page<br/>File Upload · Teams · GitHub]
             SpringAI[Spring AI<br/>ChatClient + RAG Advisor]
             EmbedModel[OllamaEmbeddingModel]
             VectorStore[ChromaDbVectorStore]
@@ -88,18 +88,20 @@ graph TB
 flowchart TD
     A[User adds a source] --> B{Detect Source Type}
 
-    B -->|Podcast URL| C[PodcastConnector<br/>Resolve feed + discover episodes]
-    B -->|Confluence URL| D[ConfluenceConnector<br/>List pages in space]
-    B -->|GitHub URL| E[GitHubConnector<br/>List files in repo]
-    B -->|Teams Channel| F[TeamsConnector<br/>List message threads]
+    B -->|RSS / podcast URL| C[MediaConnector<br/>Resolve feed + discover episodes]
+    B -->|YouTube URL| C2[YouTubeConnector<br/>List videos / playlist items]
+    B -->|Web page URL| D[WebPageConnector<br/>Fetch + parse page]
     B -->|File Upload| G[FileUploadConnector<br/>Accept uploaded files]
+    B -->|GitHub URL — planned| E[GitHubConnector<br/>List files in repo]
+    B -->|Teams Channel — planned| F[TeamsConnector<br/>List message threads]
 
     C --> H[Fetch audio<br/>yt-dlp or HTTP]
+    C2 --> H
     H --> I[POST /transcribe<br/>to Python Sidecar]
     I --> J[Whisper large-v3-turbo<br/>timestamped segments]
     J --> K[Save fragments<br/>to PostgreSQL]
 
-    D --> L[Fetch page content<br/>via Confluence REST API]
+    D --> L[Extract text<br/>via HTTP + parser]
     L --> K
 
     E --> M[Fetch files<br/>via GitHub API]
@@ -118,6 +120,7 @@ flowchart TD
     style A fill:#3b82f6,color:#fff
     style B fill:#f59e0b,color:#000
     style C fill:#f97316,color:#fff
+    style C2 fill:#f97316,color:#fff
     style D fill:#f97316,color:#fff
     style E fill:#f97316,color:#fff
     style F fill:#f97316,color:#fff
@@ -218,7 +221,7 @@ stateDiagram-v2
     INDEXED --> [*]
 ```
 
-### Text Content (Confluence, GitHub, Teams)
+### Text Content (Web Page; planned: GitHub, Teams)
 
 > **Note:** File uploads skip the FETCHING state since content is already local.
 > Upload lifecycle: PENDING → EXTRACTING → EMBEDDING → INDEXED
@@ -339,7 +342,7 @@ sequenceDiagram
     User->>Frontend: Add source (paste URL)
     Frontend->>API: POST /api/v1/sources
     API->>ConnReg: Route to connector by source_type
-    ConnReg->>API: PodcastConnector selected
+    ConnReg->>API: Connector selected (Media / YouTube / WebPage / FileUpload)
     API->>DB: Save source + content units metadata
     API-->>Frontend: {job_id, source_id}
 
@@ -347,12 +350,12 @@ sequenceDiagram
         API->>DB: Update status → FETCHING
         API->>API: Fetch content (connector-specific)
 
-        alt Audio source (Podcast)
+        alt Audio source (Media / YouTube)
             API->>DB: Update status → TRANSCRIBING
             API->>Sidecar: POST /transcribe (audio file)
             Sidecar-->>API: [{start, end, text}, ...]
             API->>DB: Save content fragments
-        else Text source (Confluence, GitHub, Teams)
+        else Text source (Web Page; planned: GitHub, Teams)
             API->>DB: Update status → EXTRACTING
             API->>API: Extract text (connector-specific)
             API->>DB: Save content fragments
@@ -422,11 +425,12 @@ graph LR
     end
 
     subgraph Connectors["Source Connectors"]
-        PodcastConn[Podcast]
-        ConfluenceConn[Confluence]
-        TeamsConn[MS Teams]
-        GitHubConn[GitHub]
+        MediaConn[Media]
+        YouTubeConn[YouTube]
+        WebPageConn[Web Page]
         FileConn[File Upload]
+        TeamsConn[MS Teams — planned]
+        GitHubConn[GitHub — planned]
     end
 
     subgraph ML_Layer["ML Layer (Python 3.11+)"]
@@ -442,7 +446,7 @@ graph LR
     end
 
     subgraph Inference
-        Ollama[Ollama + Llama 4]
+        Ollama[Ollama<br/>gemma3:27b + mxbai-embed-large]
     end
 
     Presentation --> API_Layer
@@ -456,11 +460,12 @@ graph LR
     style NextJS fill:#3b82f6,color:#fff
     style SpringBoot fill:#16a34a,color:#fff
     style ConnRegistry fill:#f97316,color:#fff
-    style PodcastConn fill:#f97316,color:#fff
-    style ConfluenceConn fill:#f97316,color:#fff
+    style MediaConn fill:#f97316,color:#fff
+    style YouTubeConn fill:#f97316,color:#fff
+    style WebPageConn fill:#f97316,color:#fff
+    style FileConn fill:#f97316,color:#fff
     style TeamsConn fill:#f97316,color:#fff
     style GitHubConn fill:#f97316,color:#fff
-    style FileConn fill:#f97316,color:#fff
     style FastAPI fill:#eab308,color:#000
     style Ollama fill:#a855f7,color:#fff
     style PostgreSQL fill:#336791,color:#fff
