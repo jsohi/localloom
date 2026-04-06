@@ -5,4 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record QueryRequest(
-    String question, List<UUID> sourceIds, List<SourceType> sourceTypes, UUID conversationId) {}
+    @jakarta.validation.constraints.NotBlank String question,
+    List<UUID> sourceIds,
+    List<SourceType> sourceTypes,
+    UUID conversationId) {}

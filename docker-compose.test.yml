@@ -37,6 +37,8 @@ services:
       start_period: 5s
 
   ml-sidecar:
+    environment:
+      LOCALLOOM_WHISPER_MODEL: tiny
     ports:
       - "18100:8100"
     healthcheck:

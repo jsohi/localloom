@@ -1,4 +1,4 @@
-.PHONY: setup dev restart lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean backup restore
+.PHONY: setup dev restart lint format test e2e build push start start-dev stop docker-build docker-up docker-down docker-logs clean backup restore monitoring-up monitoring-down
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ## setup: Check system dependencies and install all project dependencies.
@@ -128,6 +128,15 @@ backup:
 ## restore: Restore from a backup (interactive or pass timestamp).
 restore:
 	@bash scripts/restore.sh $(filter-out $@,$(MAKECMDGOALS))
+
+# ── Monitoring ───────────────────────────────────────────────────────────────
+## monitoring-up: Start Prometheus + Grafana (http://localhost:9090, http://localhost:3001).
+monitoring-up:
+	docker compose --profile monitoring up -d prometheus grafana
+
+## monitoring-down: Stop Prometheus + Grafana.
+monitoring-down:
+	docker compose --profile monitoring stop prometheus grafana
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 ## clean: Remove all build artifacts.

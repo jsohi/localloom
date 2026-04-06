@@ -1,5 +1,5 @@
 -- V1__create_schema.sql
--- Initial schema for LocalLoom
+-- Complete schema for LocalLoom
 
 CREATE SEQUENCE content_fragment_seq START WITH 1 INCREMENT BY 50;
 
@@ -37,6 +37,11 @@ CREATE TABLE content_units (
 
 CREATE INDEX idx_content_units_source_id ON content_units (source_id);
 CREATE INDEX idx_content_units_status    ON content_units (status);
+
+-- Partial unique index: prevents duplicate INDEXED episodes within a source
+CREATE UNIQUE INDEX idx_content_units_source_external_indexed
+  ON content_units (source_id, external_id)
+  WHERE external_id IS NOT NULL AND status = 'INDEXED';
 
 CREATE TABLE content_fragments (
     id              BIGINT      NOT NULL DEFAULT nextval('content_fragment_seq'),

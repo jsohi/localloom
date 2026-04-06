@@ -37,6 +37,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-log4j2")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("com.github.ben-manes.caffeine:caffeine")
 
     // Spring AI
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")

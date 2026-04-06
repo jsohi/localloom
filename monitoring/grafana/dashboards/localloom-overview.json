@@ -1,0 +1,102 @@
+{
+  "dashboard": {
+    "title": "LocalLoom Overview",
+    "uid": "localloom-overview",
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "HTTP Request Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{application=\"localloom\"}[5m])",
+            "legendFormat": "{{method}} {{uri}} {{status}}"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Response Time (P95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=\"localloom\"}[5m]))",
+            "legendFormat": "{{uri}}"
+          }
+        ]
+      },
+      {
+        "title": "Episode Processing (counter)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "localloom_episodes_processed_total",
+            "legendFormat": "Total"
+          }
+        ]
+      },
+      {
+        "title": "Active Whisper Workers",
+        "type": "gauge",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+        "targets": [
+          {
+            "expr": "localloom_sidecar_whisper_workers_active",
+            "legendFormat": "Workers"
+          }
+        ]
+      },
+      {
+        "title": "RAG Query Latency",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "rate(localloom_queries_duration_seconds_sum[5m]) / rate(localloom_queries_duration_seconds_count[5m])",
+            "legendFormat": "avg latency"
+          }
+        ]
+      },
+      {
+        "title": "JVM Heap Usage",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\",application=\"localloom\"}",
+            "legendFormat": "{{id}}"
+          }
+        ]
+      },
+      {
+        "title": "HikariCP Connections",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{application=\"localloom\"}",
+            "legendFormat": "active"
+          },
+          {
+            "expr": "hikaricp_connections_idle{application=\"localloom\"}",
+            "legendFormat": "idle"
+          }
+        ]
+      },
+      {
+        "title": "Transcription Duration",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+        "targets": [
+          {
+            "expr": "rate(localloom_sidecar_transcription_duration_seconds_sum[5m]) / rate(localloom_sidecar_transcription_duration_seconds_count[5m])",
+            "legendFormat": "avg duration"
+          }
+        ]
+      }
+    ]
+  }
+}
