@@ -76,6 +76,11 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
+# Shared prereq helpers (require_command, ensure_docker_running,
+# ensure_ollama_running, ensure_ollama_models, ensure_compose_services).
+# shellcheck source=_prereqs.sh
+source "$REPO_ROOT/scripts/_prereqs.sh"
+
 # ── Stop mode ──────────────────────────────────────────────────────────────
 if [[ "${MODE}" == "stop" ]]; then
   info "Stopping all services..."
@@ -92,51 +97,24 @@ fi
 # ── Prerequisites ──────────────────────────────────────────────────────────
 info "Checking prerequisites..."
 
-command -v docker >/dev/null 2>&1 || { err "Docker not installed. Install: https://docker.com"; exit 1; }
-command -v ollama >/dev/null 2>&1 || { err "Ollama not installed. Install: https://ollama.com"; exit 1; }
-docker info >/dev/null 2>&1 || { err "Docker is not running. Start Docker Desktop."; exit 1; }
+require_command docker "https://orbstack.dev or https://docker.com"
+require_command ollama "https://ollama.com"
 
 if [[ "${MODE}" == "dev" ]]; then
-  command -v java >/dev/null 2>&1 || { err "Java not installed. Install JDK 25+"; exit 1; }
-  command -v node >/dev/null 2>&1 || { err "Node.js not installed. Install Node 20+: https://nodejs.org"; exit 1; }
-  command -v uv >/dev/null 2>&1 || { err "uv not installed. Install: https://docs.astral.sh/uv/"; exit 1; }
+  require_command java "https://adoptium.net (JDK 25+)"
+  require_command node "https://nodejs.org (Node 20+)"
+  require_command uv   "https://docs.astral.sh/uv/"
 fi
 
 ok "Prerequisites OK"
 
+info "Checking Docker daemon..."
+ensure_docker_running
+
 # ── Ollama ─────────────────────────────────────────────────────────────────
 info "Checking Ollama..."
-
-if ! curl -sf --max-time 5 http://localhost:11434/api/tags >/dev/null 2>&1; then
-  warn "Ollama not running, starting..."
-  ollama serve &>/dev/null &
-  OLLAMA_PID=$!
-  OLLAMA_STARTED_BY_SCRIPT=true
-
-  for i in $(seq 1 15); do
-    if curl -sf --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
-      break
-    fi
-    if [[ $i -eq 15 ]]; then
-      err "Ollama failed to start after 15 retries"
-      exit 1
-    fi
-    sleep 1
-  done
-  ok "Ollama started (PID $OLLAMA_PID)"
-else
-  ok "Ollama already running"
-fi
-
-# Pull models if not present
-for model in "$CHAT_MODEL" "$EMBED_MODEL"; do
-  if ! ollama list 2>/dev/null | awk '{print $1}' | grep -qx "$model"; then
-    info "Pulling $model (this may take a few minutes)..."
-    ollama pull "$model"
-  else
-    ok "Model $model ready"
-  fi
-done
+ensure_ollama_running
+ensure_ollama_models "$CHAT_MODEL" "$EMBED_MODEL"
 
 # ── Production mode ────────────────────────────────────────────────────────
 if [[ "${MODE}" == "prod" ]]; then
