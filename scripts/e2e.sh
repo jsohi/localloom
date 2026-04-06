@@ -19,48 +19,126 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-# ── Prerequisites ───────────────────────────────────────────────────────────
-echo "==> Checking prerequisites..."
+# ── Helpers ─────────────────────────────────────────────────────────────────
 
-command -v docker >/dev/null 2>&1 || { echo "ERROR: Docker not installed. Install Docker Desktop: https://docker.com"; exit 1; }
-command -v npx >/dev/null 2>&1 || { echo "ERROR: npx not found. Install Node.js 20+: https://nodejs.org"; exit 1; }
-command -v ollama >/dev/null 2>&1 || { echo "ERROR: Ollama not installed. Install: https://ollama.com"; exit 1; }
+# require_command <binary> <install-url>
+# Fails fast if a binary is not on PATH. Cannot auto-install — OS-specific.
+require_command() {
+  local bin="$1" url="$2"
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    echo "ERROR: '$bin' not found on PATH. Install: $url"
+    exit 1
+  fi
+}
 
-docker info >/dev/null 2>&1 || { echo "ERROR: Docker is not running. Start Docker Desktop."; exit 1; }
+# ensure_docker_running
+# Checks `docker info` and, if the daemon is down, attempts to start a Docker
+# engine. macOS: prefers OrbStack, falls back to Docker Desktop. Linux: tries
+# `systemctl start docker`. Other OSes: fails with a clear message.
+ensure_docker_running() {
+  if docker info >/dev/null 2>&1; then
+    echo "    Docker daemon already running"
+    return 0
+  fi
 
-# ── Ollama ──────────────────────────────────────────────────────────────────
-echo "==> Checking Ollama..."
+  echo "    Docker daemon is not running, attempting to start..."
 
-if ! curl -sf --max-time 5 http://localhost:11434/api/tags >/dev/null 2>&1; then
-  echo "    Starting Ollama..."
+  case "$(uname -s)" in
+    Darwin)
+      if [ -d "/Applications/OrbStack.app" ]; then
+        echo "    Starting OrbStack..."
+        open -a OrbStack
+      elif [ -d "/Applications/Docker.app" ]; then
+        echo "    Starting Docker Desktop..."
+        open -a Docker
+      else
+        echo "ERROR: No Docker engine found in /Applications. Install OrbStack (https://orbstack.dev) or Docker Desktop (https://docker.com)."
+        exit 1
+      fi
+      ;;
+    Linux)
+      if command -v systemctl >/dev/null 2>&1; then
+        echo "    Starting docker.service via systemctl..."
+        sudo systemctl start docker || { echo "ERROR: failed to start docker.service"; exit 1; }
+      else
+        echo "ERROR: Docker daemon not running and no systemctl available. Start it manually."
+        exit 1
+      fi
+      ;;
+    *)
+      echo "ERROR: Unsupported OS '$(uname -s)'. Start Docker manually."
+      exit 1
+      ;;
+  esac
+
+  # Wait up to 60s for the daemon to become reachable.
+  local i
+  for i in $(seq 1 60); do
+    if docker info >/dev/null 2>&1; then
+      echo "    Docker daemon ready (after ${i}s)"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "ERROR: Docker daemon failed to become ready within 60s"
+  exit 1
+}
+
+# ensure_ollama_running
+# Checks the Ollama HTTP API and, if unreachable, runs `ollama serve` in the
+# background. Sets OLLAMA_STARTED_BY_SCRIPT=true so cleanup() can stop it.
+ensure_ollama_running() {
+  if curl -sf --max-time 5 http://localhost:11434/api/tags >/dev/null 2>&1; then
+    echo "    Ollama already running"
+    return 0
+  fi
+
+  echo "    Ollama not running, starting..."
   ollama serve &>/dev/null &
   OLLAMA_PID=$!
   OLLAMA_STARTED_BY_SCRIPT=true
 
-  # Wait with retry loop
+  local i
   for i in $(seq 1 10); do
     if curl -sf --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
-      break
-    fi
-    if [[ $i -eq 10 ]]; then
-      echo "ERROR: Ollama failed to start after 10 retries"; exit 1
+      echo "    Ollama started (PID $OLLAMA_PID)"
+      return 0
     fi
     sleep 1
   done
-  echo "    Ollama started (PID $OLLAMA_PID)"
-else
-  echo "    Ollama already running"
-fi
+  echo "ERROR: Ollama failed to start after 10 retries"
+  exit 1
+}
 
-# Pull models if not present
-for model in "$CHAT_MODEL" "$EMBED_MODEL"; do
-  if ! ollama list 2>/dev/null | awk '{print $1}' | grep -qx "$model"; then
-    echo "    Pulling $model (this may take a few minutes)..."
-    ollama pull "$model"
-  else
-    echo "    Model $model ready"
-  fi
-done
+# ensure_ollama_models <model> [<model> ...]
+# Pulls each model if it is not already present locally.
+ensure_ollama_models() {
+  local model
+  for model in "$@"; do
+    if ollama list 2>/dev/null | awk '{print $1}' | grep -qx "$model"; then
+      echo "    Model $model ready"
+    else
+      echo "    Pulling $model (this may take a few minutes)..."
+      ollama pull "$model"
+    fi
+  done
+}
+
+# ── Prerequisites ───────────────────────────────────────────────────────────
+echo "==> Checking prerequisites..."
+
+# Required binaries (cannot be auto-installed — OS-specific package managers).
+require_command docker "https://orbstack.dev or https://docker.com"
+require_command npx    "https://nodejs.org (Node.js 20+)"
+require_command ollama "https://ollama.com"
+
+# Auto-startable services.
+echo "==> Checking Docker daemon..."
+ensure_docker_running
+
+echo "==> Checking Ollama..."
+ensure_ollama_running
+ensure_ollama_models "$CHAT_MODEL" "$EMBED_MODEL"
 
 # ── Docker services ─────────────────────────────────────────────────────────
 echo "==> Stopping any dev containers to free ports..."
