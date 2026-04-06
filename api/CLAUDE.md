@@ -12,7 +12,7 @@ connector/    SourceConnector implementations (Media, YouTube, WebPage, FileUplo
 controller/   REST controllers (Query, Connector, Source, Conversation, Tts, ...)
 model/        JPA entities + enums (Source, ContentUnit, ContentFragment, Conversation, Message, Job)
 repository/   Spring Data JPA repositories
-service/      Business logic (RagService, EmbeddingService, AudioService, WhisperService, TtsService, ...)
+service/      Business logic (RagService, EmbeddingService, AudioService, MlSidecarClient, TtsService, ...)
 LocalLoomApplication.java   @SpringBootApplication entry point
 ```
 

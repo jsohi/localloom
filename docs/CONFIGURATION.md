@@ -63,7 +63,7 @@ See [MODELS.md](MODELS.md) for alternatives and switching notes (esp. embedding 
 | Variable | Default | Description |
 |---|---|---|
 | `LOCALLOOM_API_KEY` | *(empty)* | If set, requires `X-API-Key` header on all non-health endpoints (`SecurityConfig`). Empty = open access |
-| `LOCALLOOM_CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
+| `LOCALLOOM_CORS_ORIGINS` | `http://localhost:3000` | Defined in YAML under `localloom.security.cors-origins`, but **currently not consumed by any Java code** — the `WebConfig` CORS bean was removed in commit `e257092`. Setting this env var has no effect on the API right now. Tracked in [docs/APP-116-review-followups.md](APP-116-review-followups.md) item #7. |
 | `localloom.security.ssrf-allowed-hosts` | `[]` | YAML list of hostnames `SsrfValidator` allows on outbound URL fetches. Empty = block all SSRF candidates |
 
 ### RAG / chat
@@ -80,7 +80,7 @@ Any `localloom.*` config key can be set via the equivalent uppercase-underscored
 
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_DIR` | *(unset)* | When set, file logs are written here. Used by both API and sidecar in Docker |
+| `LOG_DIR` | `logs` | API: read by `log4j2-spring.xml` as `${env:LOG_DIR:-${sys:LOG_DIR:-logs}}`, controls where `api.log` and rotated files go. The Docker compose file sets it to `/app/logs` (mounted to the `localloom-logs` volume). Sidecar uses the same env var name independently — see the sidecar table below. |
 
 ---
 

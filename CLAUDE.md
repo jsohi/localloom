@@ -165,7 +165,7 @@ cd frontend && npm run lint           # Frontend lint
 - **`TtsService` is optional** — features degrade gracefully if the sidecar is unreachable.
 - **ChromaDB schema init** is handled by Spring AI (`spring.ai.vectorstore.chroma.initialize-schema: true`). The collection is created on first write.
 - **Consolidated Flyway migration** — there is only `V1__create_schema.sql`. Recent history shows we squashed pre-prod migrations; do not add V2+ without a deliberate reason.
-- **CORS** default is `http://localhost:3000`. Override via `LOCALLOOM_CORS_ORIGINS`.
+- **CORS is currently unrestricted server-side.** `localloom.security.cors-origins` exists in `application.yml` but no Java code reads it (the `WebConfig` CORS bean was removed in `e257092`). The frontend dev proxy is what gates origins right now. See `docs/APP-116-review-followups.md` item #7 for the rewire plan.
 - **API key auth** is off by default. Set `LOCALLOOM_API_KEY` to require `X-API-Key`.
 
 ## Pointers

@@ -62,10 +62,25 @@ Each item must be validated against current code before fixing — some may alre
 
 ### 7. `localloom.security.cors-origins` defined but unused
 - **File:** `api/src/main/resources/application.yml` (~line 82)
-- **Issue:** Gemini flagged that no Java code references `cors-origins`, so configured origins don't actually get applied.
-- **⚠️ Validate first:** the recent commit `e257092` explicitly removed `WebConfig` CORS ("breaks proxy, use wildcard for local"). This finding may be **intentionally stale** — the current design routes CORS through the frontend proxy, not through Spring. Before "fixing," confirm with the author whether `cors-origins` should be:
-  - **(a)** deleted from `application.yml` as dead config, or
-  - **(b)** re-wired into a `WebMvcConfigurer` bean that doesn't break the proxy.
+- **Issue:** Gemini flagged that no Java code references `cors-origins`, so configured origins don't actually get applied. **Confirmed during APP-117**: `grep` for `cors-origins` / `CORS_ORIGINS` / `allowedOrigins` in `api/src/main/java` returns zero matches. The variable is dead config.
+- **Context:** the commit `e257092` explicitly removed `WebConfig` CORS ("breaks proxy, use wildcard for local"). The current design routes CORS through the frontend dev proxy, not through Spring. So this is intentional dead config — but the docs (and the env var being present in `application.yml`) imply it works.
+- **Decision needed:**
+  - **(a)** Delete `localloom.security.cors-origins` from `application.yml` and from `docs/CONFIGURATION.md` as dead config. Cleanest. Recommended.
+  - **(b)** Re-wire into a `WebMvcConfigurer` bean that doesn't break the proxy. Heavier; only if you actually want server-side CORS gating in addition to proxy gating.
+
+### 8. ml-sidecar pytest: 8 pre-existing failing tests block strict push pipeline
+- **Files in `ml-sidecar/tests/`:**
+  - `test_config.py::test_default_settings` — config drift, expects an old default model name
+  - `test_tts_service.py::test_lazy_voice_loading` — `ValueError: Unknown voice` (voice preset rename in APP-114)
+  - `test_tts_service.py::test_different_voices_loaded_separately` — same
+  - `test_tts_service.py::test_synthesize_splits_long_text` — same
+  - `test_whisper_service.py::test_lazy_model_loading` — `av.error.FileNotFoundError: '/fake/audio.wav'` (test uses fake path that newer faster-whisper actually opens)
+  - `test_whisper_service.py::test_different_models_loaded_separately` — same
+  - `test_whisper_service.py::test_default_model_from_config` — same
+  - `test_whisper_service.py::test_transcription_result_parsing` — same
+- **Status:** 22 of 30 sidecar tests pass; these 8 fail consistently. Not introduced by APP-117 — APP-117 only made them visible by attempting to remove `|| true` from `scripts/push.sh`.
+- **Why this matters:** `scripts/push.sh` Step 4/5 still does `uv run pytest ... || true` for the sidecar (with a comment pointing to this item) so `make push` does not block on the failures. The format and lint suppression has been removed (per Gemini PR #54 review).
+- **Fix:** for each test, either update the assertion against current config defaults / voice preset names, or refactor the test fixtures to use real audio. The whisper tests likely need a tiny pre-recorded sample (the e2e fixtures already have `short-clip-10s.wav` under `test-fixtures/`). Once fixed, drop the `|| true` from `push.sh` Step 4/5 in the same commit.
 
 ---
 
@@ -84,7 +99,8 @@ Each item must be validated against current code before fixing — some may alre
 - [ ] #4 MEDIUM — request-ID filter wiring
 - [ ] #5 MEDIUM — DB health `conn.isValid`
 - [ ] #6 MEDIUM — remove redundant validation in SourceController
-- [ ] #7 MEDIUM — validate whether cors-origins is dead config (possibly stale)
+- [ ] #7 MEDIUM — `cors-origins` is confirmed dead config; delete or rewire
+- [ ] #8 MEDIUM — fix 8 drifted ml-sidecar tests, then drop `|| true` from `scripts/push.sh` Step 4/5
 
 ## Source
 

@@ -62,7 +62,7 @@ cd ml-sidecar && uv run uvicorn app.main:app --reload --port 8100   # run standa
 
 ### Add a TTS voice preset
 
-Edit the `VOICE_PRESETS` dict in `app/services/tts_service.py`. Entries map a short name (`en_US-lessac-high`) to a HuggingFace sub-path under `rhasspy/piper-voices`. The service downloads and caches on first use.
+Edit the `_VOICE_PATHS` dict in `app/services/tts_service.py`. Entries map a short name (`en_US-lessac-high`) to a HuggingFace sub-path under `rhasspy/piper-voices`. The service downloads and caches on first use.
 
 ### Update the Whisper model default
 
@@ -75,7 +75,7 @@ Change `whisper_model` in `app/config.py`. Document the change in [`docs/MODELS.
 - **`data/models` is a Docker volume** (`models-data`). Wiping the volume forces re-download of every Whisper + Piper model. Don't do it casually.
 - **`/transcribe` accepts an optional `model` query param** — request-level override for tests. Default comes from settings.
 - **Piper TTS is strictly single-voice per request.** If you need multi-voice stitching, add a new endpoint rather than overloading `/tts`.
-- **TTS max input is 5000 characters.** Enforced in `tts_service.py`. Raising the limit without measuring memory will OOM large synthesis jobs.
+- **TTS max input is 5000 characters.** Enforced in `app/endpoints/tts.py` (request validation), not in the service. Raising the limit without measuring memory will OOM large synthesis jobs.
 - **CORS** — the sidecar has its own CORS config in `main.py`. It already allows `localhost:8080`, `localhost:3000`, and their Docker equivalents. Do not add wildcards.
 - **Do not add embedding or chunking code here.** Those live in the Java API (Spring AI).
 
