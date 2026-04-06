@@ -77,6 +77,8 @@ tasks.withType<Test> {
     // Spring Boot 4 + Spring AI + Testcontainers + JaCoCo + bean-context
     // cache need more than Gradle's default 512MB. SourceImportServiceIT
     // (and similar IT slices) hit OOM during context load without this.
+    // Setting minHeapSize avoids GC churn while ramping up to maxHeapSize.
+    minHeapSize = "512m"
     maxHeapSize = "2g"
 }
 

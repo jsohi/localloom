@@ -16,7 +16,15 @@ cd "$REPO_ROOT"
 # shellcheck source=_prereqs.sh
 source "$REPO_ROOT/scripts/_prereqs.sh"
 
+# Resolve branch separately so `set -e` actually fires if `git branch
+# --show-current` errors. (Inline `CURRENT_BRANCH=$(git ...)` masks the
+# exit code, letting an empty value silently bypass the main-branch check.)
+CURRENT_BRANCH=""
 CURRENT_BRANCH="$(git branch --show-current)"
+if [[ -z "$CURRENT_BRANCH" ]]; then
+  echo "ERROR: Could not determine current git branch."
+  exit 1
+fi
 if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
   echo "ERROR: Do not push directly to $CURRENT_BRANCH. Create a feature branch first."
   exit 1
@@ -31,21 +39,29 @@ require_command docker "https://orbstack.dev or https://docker.com"
 ensure_docker_running
 
 # ── Step 2/5: Formatting ────────────────────────────────────────────────────
+# All format/lint/test commands run unsuppressed. If a per-language tool is
+# legitimately broken (e.g., a known-flaky pytest), the right fix is to ignore
+# it in that tool's own config (pyproject.toml, eslintrc, etc.) — not to
+# silence it here. Suppression hides real failures.
 echo "==> Step 2/5: Formatting"
 (cd api && ./gradlew spotlessApply)
-(cd ml-sidecar && uv run ruff format . 2>/dev/null || true)
-(cd frontend && npm run format 2>/dev/null || true)
+(cd ml-sidecar && uv run ruff format .)
+(cd frontend && npm run format)
 
 # ── Step 3/5: Linting ───────────────────────────────────────────────────────
 echo "==> Step 3/5: Linting"
 (cd api && ./gradlew spotlessCheck)
-(cd ml-sidecar && uv run ruff check . 2>/dev/null || true)
+(cd ml-sidecar && uv run ruff check .)
 (cd frontend && npm run lint)
 
 # ── Step 4/5: Running tests ─────────────────────────────────────────────────
 echo "==> Step 4/5: Running tests"
 (cd api && ./gradlew test)
-(cd ml-sidecar && uv run pytest --ignore=tests/ml 2>/dev/null || true)
+# Sidecar pytest is currently tolerant of failures because of 8 pre-existing
+# drifted tests from APP-114 (voice preset rename) and APP-116 — see
+# docs/APP-116-review-followups.md item #8. Once those are fixed, drop the
+# `|| true`. Tracked, not silenced.
+(cd ml-sidecar && uv run pytest --ignore=tests/ml || true)
 (cd frontend && npx vitest run)
 
 # ── Step 5/5: Pushing ───────────────────────────────────────────────────────
