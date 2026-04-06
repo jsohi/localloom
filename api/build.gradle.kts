@@ -74,6 +74,10 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+    // Spring Boot 4 + Spring AI + Testcontainers + JaCoCo + bean-context
+    // cache need more than Gradle's default 512MB. SourceImportServiceIT
+    // (and similar IT slices) hit OOM during context load without this.
+    maxHeapSize = "2g"
 }
 
 tasks.test {
