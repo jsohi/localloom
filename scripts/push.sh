@@ -57,11 +57,7 @@ echo "==> Step 3/5: Linting"
 # ── Step 4/5: Running tests ─────────────────────────────────────────────────
 echo "==> Step 4/5: Running tests"
 (cd api && ./gradlew test)
-# Sidecar pytest is currently tolerant of failures because of 8 pre-existing
-# drifted tests from APP-114 (voice preset rename) and APP-116 — see
-# docs/APP-116-review-followups.md item #8. Once those are fixed, drop the
-# `|| true`. Tracked, not silenced.
-(cd ml-sidecar && uv run pytest --ignore=tests/ml || true)
+(cd ml-sidecar && uv run pytest --ignore=tests/ml)
 (cd frontend && npx vitest run)
 
 # ── Step 5/5: Pushing ───────────────────────────────────────────────────────
