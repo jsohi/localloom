@@ -68,19 +68,33 @@ Each item must be validated against current code before fixing — some may alre
   - **(a)** Delete `localloom.security.cors-origins` from `application.yml` and from `docs/CONFIGURATION.md` as dead config. Cleanest. Recommended.
   - **(b)** Re-wire into a `WebMvcConfigurer` bean that doesn't break the proxy. Heavier; only if you actually want server-side CORS gating in addition to proxy gating.
 
-### 8. ml-sidecar pytest: 8 pre-existing failing tests block strict push pipeline
-- **Files in `ml-sidecar/tests/`:**
-  - `test_config.py::test_default_settings` — config drift, expects an old default model name
-  - `test_tts_service.py::test_lazy_voice_loading` — `ValueError: Unknown voice` (voice preset rename in APP-114)
-  - `test_tts_service.py::test_different_voices_loaded_separately` — same
-  - `test_tts_service.py::test_synthesize_splits_long_text` — same
-  - `test_whisper_service.py::test_lazy_model_loading` — `av.error.FileNotFoundError: '/fake/audio.wav'` (test uses fake path that newer faster-whisper actually opens)
-  - `test_whisper_service.py::test_different_models_loaded_separately` — same
-  - `test_whisper_service.py::test_default_model_from_config` — same
-  - `test_whisper_service.py::test_transcription_result_parsing` — same
-- **Status:** 22 of 30 sidecar tests pass; these 8 fail consistently. Not introduced by APP-117 — APP-117 only made them visible by attempting to remove `|| true` from `scripts/push.sh`.
-- **Why this matters:** `scripts/push.sh` Step 4/5 still does `uv run pytest ... || true` for the sidecar (with a comment pointing to this item) so `make push` does not block on the failures. The format and lint suppression has been removed (per Gemini PR #54 review).
-- **Fix:** for each test, either update the assertion against current config defaults / voice preset names, or refactor the test fixtures to use real audio. The whisper tests likely need a tiny pre-recorded sample (the e2e fixtures already have `short-clip-10s.wav` under `test-fixtures/`). Once fixed, drop the `|| true` from `push.sh` Step 4/5 in the same commit.
+### 8. ml-sidecar pytest: 8 drifted tests — **[fixed in APP-117]**
+- **Was:** 8 pre-existing failing sidecar tests blocking a strict `make push` pipeline.
+- **Files fixed in `ml-sidecar/tests/`:**
+  - `test_config.py::test_default_settings` — assertion updated from `en_US-lessac-medium` → `en_US-lessac-high` to match the actual default in `app/config.py`.
+  - `test_tts_service.py::test_lazy_voice_loading` / `test_different_voices_loaded_separately` / `test_synthesize_splits_long_text` — added `@patch("app.services.tts_service.TTSService._ensure_voice_downloaded")` so the synthetic voice names (`test-voice`, `voice-a`, `voice-b`) bypass the `_VOICE_PATHS` allowlist check that was added in APP-114.
+  - `test_whisper_service.py` (4 tests) — rewrote to patch `WhisperService._get_pool` instead of `WhisperModel`. The original patch target was a module-level class that gets imported inside `_transcribe_in_worker`, which runs in a `ProcessPoolExecutor` subprocess where the patch does not propagate. Patching at the pool level mocks `pool.submit` to return a fake future, so we can assert on what the service forwards without spinning up a real worker or loading a model.
+- **Result:** `30 passed, 0 failed` for `uv run pytest --ignore=tests/ml`.
+- **Push pipeline:** `scripts/push.sh` Step 4/5 no longer suppresses sidecar pytest with `|| true` — the suppression and the comment have been removed.
+- **Status:** RESOLVED in APP-117. Leaving the entry in the followups doc for historical traceability.
+
+### 9. `scripts/restore.sh` swallows Postgres restore exit code (pre-existing)
+- **File:** `scripts/restore.sh:79`
+- **Code:**
+  ```bash
+  gunzip -c "$PG_FILE" | docker exec -i "$PG_CONTAINER" psql -U "${POSTGRES_USER:-localloom}" -d "${POSTGRES_DB:-localloom}" -q --set ON_ERROR_STOP=on 2>&1 | tail -1 || true
+  ```
+- **Issue:** the trailing `|| true` discards the exit status of an *actual data restore operation*. If the Postgres restore fails partway through, the script silently reports success and the user thinks they have a recovered database. The exact opposite of what disaster-recovery tooling should do.
+- **Severity:** HIGH for a pre-prod release path. Disaster recovery tooling that lies is worse than no tooling.
+- **Pre-existing:** not introduced by APP-117. Found during the `|| true` audit.
+- **Fix:** capture the exit status with `PIPESTATUS` (since `tail` is the last command in the pipeline, the psql exit is at `${PIPESTATUS[1]}`) and propagate it. Or restructure to write `psql` output to a temp file and check the exit before any tee/tail.
+  ```bash
+  set -o pipefail  # so the pipeline as a whole fails if psql does
+  gunzip -c "$PG_FILE" \
+    | docker exec -i "$PG_CONTAINER" psql -U ... -d ... -q --set ON_ERROR_STOP=on 2>&1 \
+    | tail -1
+  ```
+  (Drop the `|| true`. With `set -o pipefail` already at the top of the script — verify — the pipeline failure will propagate.)
 
 ---
 
@@ -100,7 +114,8 @@ Each item must be validated against current code before fixing — some may alre
 - [ ] #5 MEDIUM — DB health `conn.isValid`
 - [ ] #6 MEDIUM — remove redundant validation in SourceController
 - [ ] #7 MEDIUM — `cors-origins` is confirmed dead config; delete or rewire
-- [ ] #8 MEDIUM — fix 8 drifted ml-sidecar tests, then drop `|| true` from `scripts/push.sh` Step 4/5
+- [x] #8 MEDIUM — **fixed in APP-117**: 8 drifted ml-sidecar tests rewritten, `|| true` removed from `scripts/push.sh` Step 4/5
+- [ ] #9 HIGH — `scripts/restore.sh` swallows Postgres restore exit code via `|| true`; disaster recovery silently lies on failure
 
 ## Source
 

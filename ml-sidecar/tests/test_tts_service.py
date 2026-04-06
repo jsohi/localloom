@@ -64,8 +64,17 @@ def test_concatenate_two_buffers():
 # -- TTSService tests ---------------------------------------------------------
 
 
+# The TTSService tests below patch both PiperVoice (the loader) and
+# _ensure_voice_downloaded (the path resolver) so they can use synthetic
+# voice names without going through the HuggingFace download or the
+# _VOICE_PATHS allowlist. The tests are exercising lazy-load semantics,
+# not the download logic.
+
+
+@patch("app.services.tts_service.TTSService._ensure_voice_downloaded")
 @patch("app.services.tts_service.PiperVoice")
-def test_lazy_voice_loading(mock_piper_cls):
+def test_lazy_voice_loading(mock_piper_cls, mock_ensure_downloaded):
+    mock_ensure_downloaded.return_value = "/fake/model.onnx"
     mock_voice = MagicMock()
     mock_piper_cls.load.return_value = mock_voice
 
@@ -80,8 +89,10 @@ def test_lazy_voice_loading(mock_piper_cls):
     assert mock_piper_cls.load.call_count == 1
 
 
+@patch("app.services.tts_service.TTSService._ensure_voice_downloaded")
 @patch("app.services.tts_service.PiperVoice")
-def test_different_voices_loaded_separately(mock_piper_cls):
+def test_different_voices_loaded_separately(mock_piper_cls, mock_ensure_downloaded):
+    mock_ensure_downloaded.return_value = "/fake/model.onnx"
     mock_voice = MagicMock()
     mock_piper_cls.load.return_value = mock_voice
     mock_voice.synthesize.side_effect = lambda text, wav_file: _write_silent_wav(wav_file)
@@ -93,8 +104,10 @@ def test_different_voices_loaded_separately(mock_piper_cls):
     assert mock_piper_cls.load.call_count == 2
 
 
+@patch("app.services.tts_service.TTSService._ensure_voice_downloaded")
 @patch("app.services.tts_service.PiperVoice")
-def test_synthesize_splits_long_text(mock_piper_cls):
+def test_synthesize_splits_long_text(mock_piper_cls, mock_ensure_downloaded):
+    mock_ensure_downloaded.return_value = "/fake/model.onnx"
     mock_voice = MagicMock()
     mock_piper_cls.load.return_value = mock_voice
     mock_voice.synthesize.side_effect = lambda text, wav_file: _write_silent_wav(wav_file)
