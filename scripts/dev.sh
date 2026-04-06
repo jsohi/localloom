@@ -12,6 +12,7 @@ RESET='\033[0m'
 
 # ── Process tracking ─────────────────────────────────────────────────────────
 PIDS=()
+OLLAMA_STARTED_BY_SCRIPT=false
 
 cleanup() {
   printf "\n%bShutting down services…%b\n" "${BOLD}" "${RESET}"
@@ -20,6 +21,10 @@ cleanup() {
       kill "${pid}" 2>/dev/null || true
     fi
   done
+  if [[ "$OLLAMA_STARTED_BY_SCRIPT" == true && -n "${OLLAMA_PID:-}" ]]; then
+    kill -TERM "$OLLAMA_PID" 2>/dev/null && sleep 1
+    kill -9 "$OLLAMA_PID" 2>/dev/null || true
+  fi
   wait 2>/dev/null || true
   printf "All services stopped.\n"
 }
@@ -37,6 +42,28 @@ run_service() {
   ) &
   PIDS+=($!)
 }
+
+# ── Prerequisites ────────────────────────────────────────────────────────────
+# Shared helpers (require_command, ensure_docker_running, ensure_ollama_running,
+# ensure_ollama_models, ensure_compose_services).
+# shellcheck source=_prereqs.sh
+source "$REPO_ROOT/scripts/_prereqs.sh"
+
+printf "==> Checking prerequisites...\n"
+require_command docker "https://orbstack.dev or https://docker.com"
+require_command java   "https://adoptium.net (JDK 25+)"
+require_command node   "https://nodejs.org (Node 20+)"
+require_command uv     "https://docs.astral.sh/uv/"
+require_command ollama "https://ollama.com"
+
+printf "==> Checking Docker daemon...\n"
+ensure_docker_running
+
+printf "==> Ensuring infra (postgres, chromadb) is up...\n"
+ensure_compose_services "-f $REPO_ROOT/docker-compose.yml" postgres chromadb
+
+printf "==> Checking Ollama...\n"
+ensure_ollama_running
 
 # ── Start services ───────────────────────────────────────────────────────────
 printf "%b%-10s%b Starting on :8080\n" "${CYAN}"    "[API]"     "${RESET}"
