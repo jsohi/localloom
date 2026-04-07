@@ -159,12 +159,16 @@ header "Installing git hooks"
 # Point git at the tracked hooks directory so scripts/hooks/pre-push refuses
 # any direct `git push` that didn't come through `make push`. This is the
 # only supported way to push from this repo.
-if (cd "${REPO_ROOT}" && git rev-parse --git-dir >/dev/null 2>&1); then
+if git -C "${REPO_ROOT}" rev-parse --git-dir >/dev/null 2>&1; then
   existing="$(git -C "${REPO_ROOT}" config --local core.hooksPath 2>/dev/null || true)"
   if [ -n "${existing}" ] && [ "${existing}" != "scripts/hooks" ]; then
     printf "  ⚠  Overwriting existing core.hooksPath=%s\n" "${existing}"
   fi
-  (cd "${REPO_ROOT}" && git config core.hooksPath scripts/hooks)
+  # Belt-and-suspenders: the file is committed with mode 100755, but re-set
+  # the executable bit in case a clone landed on a filesystem that lost it
+  # (some Windows / network mounts). git silently ignores non-executable hooks.
+  chmod +x "${REPO_ROOT}/scripts/hooks/pre-push"
+  git -C "${REPO_ROOT}" config core.hooksPath scripts/hooks
   ok "git core.hooksPath -> scripts/hooks"
 else
   printf "  Skipped — %s is not a git working tree\n" "${REPO_ROOT}"
