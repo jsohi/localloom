@@ -2,7 +2,6 @@ package com.localloom.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -113,9 +112,6 @@ class SecurityConfigTest {
 
   @Test
   void enabledFilterRejectsKeyWithSameLengthDifferentBytes() throws Exception {
-    // Same length as API_KEY ("test-key-123" — 12 chars). Since matches() hashes both sides to a
-    // fixed-length SHA-256 digest before comparing, the underlying compare is constant-time
-    // regardless of length, but this case still locks in the "wrong-bytes-same-length" behavior.
     request.setMethod("POST");
     request.setRequestURI("/api/v1/query");
     request.addHeader("X-API-Key", "test-key-XYZ");
@@ -143,13 +139,10 @@ class SecurityConfigTest {
 
     enabledFilter.doFilter(request, response, chain);
 
-    final JsonNode body = objectMapper.readTree(response.getContentAsString());
+    final var body = objectMapper.readTree(response.getContentAsString());
     assertThat(body.get("status").asInt()).isEqualTo(401);
     assertThat(body.get("message").asText()).isEqualTo("Invalid or missing API key");
-    assertThat(body.has("timestamp")).isTrue();
-    // timestamp must be a parseable ISO-8601 instant (JavaTimeModule serialization)
     Instant.parse(body.get("timestamp").asText());
-    assertThat(body.has("requestId")).isTrue();
     assertThat(body.get("requestId").isNull()).isTrue();
   }
 
@@ -161,7 +154,7 @@ class SecurityConfigTest {
 
     enabledFilter.doFilter(request, response, chain);
 
-    final JsonNode body = objectMapper.readTree(response.getContentAsString());
+    final var body = objectMapper.readTree(response.getContentAsString());
     assertThat(body.get("requestId").asText()).isEqualTo("abc12345");
   }
 

@@ -48,9 +48,7 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-vector-store-chroma")
     implementation("org.springframework.ai:spring-ai-rag")
 
-    // Legacy Jackson 2.x JSR-310 module — paired with the Jackson 2 ObjectMapper bean in
-    // SpringAiConfig so services serializing java.time.* values (e.g. ErrorResponse) get
-    // ISO-8601 strings instead of epoch numbers or failures.
+    // JSR-310 module for the Jackson 2 ObjectMapper bean in SpringAiConfig.
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // PDF text extraction
