@@ -81,9 +81,6 @@ public class SourceController {
   @PostMapping("/detect-url")
   public Map<String, String> detectUrl(
       @jakarta.validation.Valid @RequestBody final DetectUrlRequest request) {
-    if (request.url() == null || request.url().isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "url is required");
-    }
     final var urlType = urlResolver.detectType(request.url());
     final var sourceType = urlResolver.toSourceType(urlType);
     return Map.of("urlType", urlType.name(), "sourceType", sourceType.name());
