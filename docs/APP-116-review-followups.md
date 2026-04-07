@@ -108,9 +108,9 @@ Each item must be validated against current code before fixing — some may alre
 ## Status tracker
 
 - [ ] #1 HIGH — CORS preflight OPTIONS skip
-- [ ] #2 MEDIUM — constant-time API-key compare
-- [ ] #3 MEDIUM — error shape consistency in SecurityConfig
-- [ ] #4 MEDIUM — request-ID filter wiring
+- [x] #2 MEDIUM — **fixed in APP-126**: constant-time API-key compare via `MessageDigest.isEqual`
+- [x] #3 MEDIUM — **fixed in APP-126**: 401 body now serializes the `ErrorResponse` record (status, message, timestamp, requestId) via the Jackson 2 `ObjectMapper` bean
+- [x] #4 MEDIUM — **stale + addressed in APP-126**: `RequestIdFilter` already exists and populates `ThreadContext` (the original Gemini finding was outdated by APP-116). APP-126 pinned `SecurityConfig` to `@Order(HIGHEST_PRECEDENCE + 10)` so `RequestIdFilter` (still at `HIGHEST_PRECEDENCE`) is guaranteed to run first, which lets the 401 path read the requestId from `ThreadContext`
 - [ ] #5 MEDIUM — DB health `conn.isValid`
 - [ ] #6 MEDIUM — remove redundant validation in SourceController
 - [ ] #7 MEDIUM — `cors-origins` is confirmed dead config; delete or rewire
