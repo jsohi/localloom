@@ -51,6 +51,19 @@ class SecurityConfigTest {
   }
 
   @Test
+  void enabledFilterRejectsBareOptionsWithoutCorsHeaders() throws Exception {
+    // Non-CORS OPTIONS (e.g. method-discovery probe) must still hit auth — only true CORS
+    // preflights (Origin + Access-Control-Request-Method) are allowed through.
+    request.setMethod("OPTIONS");
+    request.setRequestURI("/api/v1/query");
+
+    enabledFilter.doFilter(request, response, chain);
+
+    assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+    assertThat(chain.getRequest()).isNull();
+  }
+
+  @Test
   void enabledFilterRejectsPostWithoutApiKey() throws Exception {
     request.setMethod("POST");
     request.setRequestURI("/api/v1/query");
