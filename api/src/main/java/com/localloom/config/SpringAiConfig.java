@@ -1,6 +1,8 @@
 package com.localloom.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.localloom.service.OllamaService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,10 +30,16 @@ public class SpringAiConfig {
         .build();
   }
 
-  /** Jackson 2.x ObjectMapper — required by SourceImportService (SB4 ships Jackson 3.x). */
+  /**
+   * Jackson 2.x ObjectMapper — required by SourceImportService (SB4 ships Jackson 3.x).
+   * JavaTimeModule is registered so callers can serialize {@code java.time.*} values (e.g. {@code
+   * ErrorResponse.timestamp}) as ISO-8601 strings instead of epoch numbers.
+   */
   @Bean
   ObjectMapper objectMapper() {
-    return new ObjectMapper();
+    return new ObjectMapper()
+        .registerModule(new JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
   }
 
   @Bean
