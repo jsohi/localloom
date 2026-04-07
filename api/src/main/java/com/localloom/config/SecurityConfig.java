@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.Arrays;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -37,6 +36,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class SecurityConfig extends OncePerRequestFilter {
 
   private static final Logger log = LogManager.getLogger(SecurityConfig.class);
+  private static final String API_KEY_HEADER = "X-API-Key";
 
   private final byte[] apiKeyHash;
   private final boolean enabled;
@@ -46,14 +46,11 @@ public class SecurityConfig extends OncePerRequestFilter {
       @Value("${localloom.security.api-key:}") final String apiKey,
       final ObjectMapper objectMapper) {
     this.enabled = apiKey != null && !apiKey.isBlank();
-    // Hash once at construction to a fixed-length digest, then drop the plaintext. This both
-    // (a) makes the byte-by-byte compare in matches() truly constant-time across all inputs
-    // (no length leak — every comparison is over 32 bytes) and (b) avoids leaving the raw
-    // API-key bytes sitting in the heap for the lifetime of the JVM.
+    // Hash once at construction to a fixed-length digest. This makes the byte-by-byte compare in
+    // matches() constant-time across all inputs — every comparison is over 32 bytes regardless of
+    // the input length, so neither key bytes nor key length can be recovered from response timing.
     if (enabled) {
-      final var plaintext = apiKey.getBytes(StandardCharsets.UTF_8);
-      this.apiKeyHash = sha256(plaintext);
-      Arrays.fill(plaintext, (byte) 0);
+      this.apiKeyHash = sha256(apiKey.getBytes(StandardCharsets.UTF_8));
       log.info("API key authentication enabled");
     } else {
       this.apiKeyHash = new byte[0];
@@ -87,7 +84,7 @@ public class SecurityConfig extends OncePerRequestFilter {
       return;
     }
 
-    final var provided = request.getHeader("X-API-Key");
+    final var provided = request.getHeader(API_KEY_HEADER);
     if (matches(provided)) {
       filterChain.doFilter(request, response);
     } else {
@@ -95,26 +92,18 @@ public class SecurityConfig extends OncePerRequestFilter {
     }
   }
 
-  /**
-   * Constant-time API-key comparison. The provided value is hashed to the same fixed-length digest
-   * as the configured key and the two digests are compared with {@link MessageDigest#isEqual}, so
-   * neither the key bytes nor its length can be recovered from response timing.
-   */
   private boolean matches(final String provided) {
     if (provided == null) {
       return false;
     }
-    final var providedBytes = provided.getBytes(StandardCharsets.UTF_8);
-    final var providedHash = sha256(providedBytes);
-    Arrays.fill(providedBytes, (byte) 0);
-    return MessageDigest.isEqual(apiKeyHash, providedHash);
+    return MessageDigest.isEqual(apiKeyHash, sha256(provided.getBytes(StandardCharsets.UTF_8)));
   }
 
   private static byte[] sha256(final byte[] input) {
     try {
       return MessageDigest.getInstance("SHA-256").digest(input);
     } catch (final NoSuchAlgorithmException e) {
-      // SHA-256 is mandated by every JRE; this branch is unreachable.
+      // SHA-256 is mandated by every JRE.
       throw new IllegalStateException("SHA-256 unavailable", e);
     }
   }
