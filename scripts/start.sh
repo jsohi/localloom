@@ -51,11 +51,15 @@ cleanup() {
   echo ""
   info "Shutting down..."
 
-  # Stop dev processes if any
+  # Stop dev processes if any. Wait on explicit PIDs rather than bare `wait`, because
+  # bare `wait` would also block on the backgrounded `ollama serve` child started earlier
+  # by `ensure_ollama_running` (that daemon is reaped later in this cleanup, not here).
   for pid in "${DEV_PIDS[@]:-}"; do
     kill "$pid" 2>/dev/null || true
   done
-  wait 2>/dev/null || true
+  if [ "${#DEV_PIDS[@]}" -gt 0 ]; then
+    wait "${DEV_PIDS[@]}" 2>/dev/null || true
+  fi
 
   # Stop Docker services
   if [[ "${MODE}" == "prod" ]]; then
