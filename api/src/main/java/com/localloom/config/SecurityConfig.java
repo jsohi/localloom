@@ -10,8 +10,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -48,9 +48,10 @@ public class SecurityConfig extends OncePerRequestFilter {
       return;
     }
 
-    if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+    if (CorsUtils.isPreFlightRequest(request)) {
       // Browser CORS preflight cannot carry X-API-Key, so authenticating it would 401 every
-      // cross-origin request before the real call ever fires.
+      // cross-origin request before the real call ever fires. Narrowed via CorsUtils so non-CORS
+      // OPTIONS probes (e.g. method discovery) still hit the auth check.
       filterChain.doFilter(request, response);
       return;
     }
