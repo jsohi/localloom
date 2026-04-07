@@ -52,7 +52,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // PDF text extraction
-    implementation("org.apache.pdfbox:pdfbox:3.0.5")
+    implementation("org.apache.pdfbox:pdfbox:3.0.7")
 
     // HTML scraping
     implementation("org.jsoup:jsoup:1.18.3")
