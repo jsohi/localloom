@@ -73,10 +73,14 @@ sleep 1
 docker compose -f "$REPO_ROOT/docker-compose.yml" up -d postgres 2>/dev/null
 sleep 3
 
-# Restore Postgres
+# Restore Postgres.
+# `set -o pipefail` (from `set -euo pipefail` at the top of the file) combined with
+# `ON_ERROR_STOP=on` ensures a psql failure fails the whole pipeline even though `tail`
+# is the last command. Do NOT re-add `|| true` here — a silently-failing restore is worse
+# than no restore at all.
 PG_CONTAINER=$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q postgres)
 echo "==> Restoring PostgreSQL..."
-gunzip -c "$PG_FILE" | docker exec -i "$PG_CONTAINER" psql -U "${POSTGRES_USER:-localloom}" -d "${POSTGRES_DB:-localloom}" -q --set ON_ERROR_STOP=on 2>&1 | tail -1 || true
+gunzip -c "$PG_FILE" | docker exec -i "$PG_CONTAINER" psql -U "${POSTGRES_USER:-localloom}" -d "${POSTGRES_DB:-localloom}" -q --set ON_ERROR_STOP=on 2>&1 | tail -1
 echo "    PostgreSQL restored."
 
 # Restore ChromaDB

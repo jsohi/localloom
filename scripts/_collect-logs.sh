@@ -9,11 +9,17 @@ collect_logs() {
 
   mkdir -p "$log_dir"
 
-  # Run all three copies in parallel
+  # Run all three copies in parallel, then wait on ONLY these PIDs. A bare `wait` would
+  # also block on any other background child of the parent shell (e.g. the `ollama serve`
+  # that e2e.sh starts via ensure_ollama_running), which never exits — that previously
+  # caused e2e.sh to hang in __wait4 for 15+ minutes after tests completed.
   docker compose $compose_flags logs --timestamps > "$log_dir/docker-compose.log" 2>&1 &
+  local logs_pid=$!
   docker compose $compose_flags cp api:/app/logs/. "$log_dir/api/" 2>/dev/null &
+  local api_pid=$!
   docker compose $compose_flags cp ml-sidecar:/app/logs/. "$log_dir/ml-sidecar/" 2>/dev/null &
-  wait
+  local sidecar_pid=$!
+  wait "$logs_pid" "$api_pid" "$sidecar_pid" || true
 
   local file_count total_size
   file_count=$(find "$log_dir" -type f | wc -l | tr -d ' ')
