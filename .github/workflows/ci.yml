@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     paths-ignore: ['docs/**', '*.md']
+  pull_request:
+    branches: [main]
+    # Intentionally no `paths-ignore` here: docs-only PRs must still report
+    # required checks, otherwise branch protection blocks them forever
+    # waiting for a status that will never fire.
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

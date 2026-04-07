@@ -155,6 +155,7 @@ cd frontend && npm run lint           # Frontend lint
 - Commit: `APP-XXX: Short description` (summary <72 chars).
 - **Never amend published commits.** Always create new commits.
 - **Never force-push `main`/`master`.** The Makefile `push` target refuses direct pushes to main.
+- **Never use `git push` directly. Always `make push`.** The repo-side hook `scripts/hooks/pre-push` (wired by `make setup` via `core.hooksPath`) refuses any `git push` that didn't go through `scripts/push.sh`. `make push` runs format + lint + test for all three projects, then pushes with `--force-with-lease`.
 - Never use `--no-verify` or bypass hooks.
 
 ## Gotchas

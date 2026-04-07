@@ -155,6 +155,21 @@ fi
 # ── Project installation ─────────────────────────────────────────────────────
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+header "Installing git hooks"
+# Point git at the tracked hooks directory so scripts/hooks/pre-push refuses
+# any direct `git push` that didn't come through `make push`. This is the
+# only supported way to push from this repo.
+if (cd "${REPO_ROOT}" && git rev-parse --git-dir >/dev/null 2>&1); then
+  existing="$(git -C "${REPO_ROOT}" config --local core.hooksPath 2>/dev/null || true)"
+  if [ -n "${existing}" ] && [ "${existing}" != "scripts/hooks" ]; then
+    printf "  ⚠  Overwriting existing core.hooksPath=%s\n" "${existing}"
+  fi
+  (cd "${REPO_ROOT}" && git config core.hooksPath scripts/hooks)
+  ok "git core.hooksPath -> scripts/hooks"
+else
+  printf "  Skipped — %s is not a git working tree\n" "${REPO_ROOT}"
+fi
+
 header "Installing API dependencies  (Spring Boot / Gradle)"
 if [ -f "${REPO_ROOT}/api/gradlew" ]; then
   (cd "${REPO_ROOT}/api" && ./gradlew build -x test)

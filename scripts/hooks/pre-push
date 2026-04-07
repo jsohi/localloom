@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Refuses any `git push` not initiated by `make push` (scripts/push.sh),
+# which exports LOCALLOOM_PUSH_VIA_MAKE=1 to signal the format+lint+test
+# pipeline ran. Wired by `make setup` (git config core.hooksPath scripts/hooks).
+# Bypassing with --no-verify is forbidden by CLAUDE.md.
+
+set -eu
+
+if [ "${LOCALLOOM_PUSH_VIA_MAKE:-}" = "1" ]; then
+  exit 0
+fi
+
+cat >&2 <<'MSG'
+
+✘ git push blocked — use `make push`.
+
+`make push` runs format + lint + tests for all three projects, then
+pushes with --force-with-lease. It is the only supported path.
+Do not bypass with --no-verify (CLAUDE.md).
+
+MSG
+exit 1

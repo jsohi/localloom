@@ -61,7 +61,10 @@ echo "==> Step 4/5: Running tests"
 (cd frontend && npx vitest run)
 
 # ── Step 5/5: Pushing ───────────────────────────────────────────────────────
+# Signal the scripts/hooks/pre-push hook that the format+lint+test pipeline
+# already ran here, so it should let the push through. Any direct `git push`
+# without this env var is refused by the hook.
 echo "==> Step 5/5: Pushing"
-git push --force-with-lease -u origin "$CURRENT_BRANCH"
+LOCALLOOM_PUSH_VIA_MAKE=1 git push --force-with-lease -u origin "$CURRENT_BRANCH"
 
 echo "==> Push complete."
