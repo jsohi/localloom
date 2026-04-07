@@ -59,8 +59,7 @@ class SecurityConfigTest {
 
     enabledFilter.doFilter(request, response, chain);
 
-    assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
-    assertThat(chain.getRequest()).isNull();
+    assertUnauthorizedJsonResponse();
   }
 
   @Test
@@ -70,8 +69,7 @@ class SecurityConfigTest {
 
     enabledFilter.doFilter(request, response, chain);
 
-    assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
-    assertThat(chain.getRequest()).isNull();
+    assertUnauthorizedJsonResponse();
   }
 
   @Test
@@ -94,7 +92,13 @@ class SecurityConfigTest {
 
     enabledFilter.doFilter(request, response, chain);
 
+    assertUnauthorizedJsonResponse();
+  }
+
+  private void assertUnauthorizedJsonResponse() throws Exception {
     assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+    assertThat(response.getContentType()).isEqualTo("application/json");
+    assertThat(response.getContentAsString()).contains("Invalid or missing API key");
     assertThat(chain.getRequest()).isNull();
   }
 }
