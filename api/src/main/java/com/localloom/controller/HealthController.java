@@ -48,9 +48,8 @@ public class HealthController {
 
   private String checkPostgres() {
     try (final var conn = dataSource.getConnection()) {
-      conn.isValid(3);
-      return "UP";
-    } catch (Exception e) {
+      return conn.isValid(3) ? "UP" : "DOWN";
+    } catch (final Exception e) {
       log.warn("Postgres health check failed: {}", e.getMessage());
       return "DOWN";
     }
@@ -59,7 +58,7 @@ public class HealthController {
   private String checkOllama() {
     try {
       return ollamaService.isHealthy() ? "UP" : "DOWN";
-    } catch (Exception e) {
+    } catch (final Exception e) {
       log.warn("Ollama health check failed: {}", e.getMessage());
       return "DOWN";
     }
@@ -68,7 +67,7 @@ public class HealthController {
   private String checkSidecar() {
     try {
       return mlSidecarClient.isHealthy() ? "UP" : "DOWN";
-    } catch (Exception e) {
+    } catch (final Exception e) {
       log.warn("ML Sidecar health check failed: {}", e.getMessage());
       return "DOWN";
     }
