@@ -55,7 +55,7 @@ dependencies {
     implementation("org.apache.pdfbox:pdfbox:3.0.5")
 
     // HTML scraping
-    implementation("org.jsoup:jsoup:1.18.3")
+    implementation("org.jsoup:jsoup:1.22.2")
 
     // Database
     implementation("org.springframework.boot:spring-boot-starter-flyway")
