@@ -27,7 +27,7 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.ai:spring-ai-bom:2.0.0-M4")
+        mavenBom("org.springframework.ai:spring-ai-bom:2.0.0-M5")
         mavenBom("org.testcontainers:testcontainers-bom:2.0.4")
     }
 }
